@@ -184,7 +184,7 @@ class NotificationEvent {
         map['largeIcon'] != null && (map['largeIcon'] as Uint8List).isNotEmpty;
     var evt = NotificationEvent(
       createAt: DateTime.now(),
-      remove: map['remove'],
+      remove: map['removeFlag'],
       uniqueId: map["_id"],
       key: map["key"],
       uid: map['uid'],
