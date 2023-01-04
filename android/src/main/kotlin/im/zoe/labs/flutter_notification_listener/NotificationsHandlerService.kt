@@ -196,16 +196,16 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             return false
         }
 
-        if (cfg?.foreground != true) {
-            Log.i(TAG, "no need to start foreground: ${cfg?.foreground}")
-            return false
-        }
+//        if (cfg?.foreground != true) {
+//            Log.i(TAG, "no need to start foreground: ${cfg?.foreground}")
+//            return false
+//        }
 
         // first is not running already, start at first
-        if (!FlutterNotificationListenerPlugin.isServiceRunning(mContext, this.javaClass)) {
-            Log.e(TAG, "service is not running")
-            return false
-        }
+//        if (!FlutterNotificationListenerPlugin.isServiceRunning(mContext, this.javaClass)) {
+//            Log.e(TAG, "service is not running")
+//            return false
+//        }
 
         // get args from store or args
         var cfg = cfg
