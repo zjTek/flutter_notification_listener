@@ -46,6 +46,14 @@ class NotificationsListener {
   static Future<void> openPermissionSettings() async {
     return await _methodChannel.invokeMethod('plugin.openPermissionSettings');
   }
+  /// Open the settings activity
+  static Future<void> openAppSettings() async {
+    return await _methodChannel.invokeMethod('plugin.openAppSettings');
+  }
+  /// Open the settings activity
+  static Future<void> openAppLaucnSettings() async {
+    return await _methodChannel.invokeMethod('plugin.openAppLaucnSettings');
+  }
 
   /// Initialize the plugin and request relevant permissions from the user.
   static Future<void> initialize({

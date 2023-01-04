@@ -15,7 +15,7 @@ import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 import java.nio.ByteBuffer
 import java.util.*
-
+import android.telephony.TelephonyManager
 
 class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
   private var eventSink: EventChannel.EventSink? = null
@@ -39,16 +39,17 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_CACHE_KEY, engine)
 
     // TODO: remove those code
-    val receiver = NotificationReceiver()
-    val intentFilter = IntentFilter()
-    intentFilter.addAction(NotificationsHandlerService.NOTIFICATION_INTENT)
-    mContext.registerReceiver(receiver, intentFilter)
+//    val receiver = NotificationReceiver()
+//    val intentFilter = IntentFilter()
+//    intentFilter.addAction(NotificationsHandlerService.NOTIFICATION_INTENT)
+//    mContext.registerReceiver(receiver, intentFilter)
 
     Log.i(TAG, "attached engine finished")
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
     // methodChannel.setMethodCallHandler(null)
+    stopService(mContext)
   }
 
   @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
@@ -117,7 +118,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         /* Start the notification service once permission has been given. */
         val intent = Intent(context, NotificationsHandlerService::class.java)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && cfg.foreground == true) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
           Log.i(TAG, "start service foreground")
           context.startForegroundService(intent)
         } else {
@@ -191,6 +192,18 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       }
       "plugin.openPermissionSettings" -> {
         return result.success(NotificationsHandlerService.openPermissionSettings(mContext))
+      }
+      "plugin.openAppSettings" -> {
+        return result.success(NotificationsHandlerService.openAppSettings(mContext))
+      }
+      "plugin.getManufacture" -> {
+        return result.success(NotificationsHandlerService.getManufacture())
+      }
+      "plugin.openBatterySettings" -> {
+        return result.success(NotificationsHandlerService.openBatterySettings(mContext))
+      }
+      "plugin.openAppLauchSettings" -> {
+        return result.success(NotificationsHandlerService.openAppLaunchSettings(mContext))
       }
       "plugin.isServiceRunning" -> {
         return result.success(isServiceRunning(mContext, NotificationsHandlerService::class.java))

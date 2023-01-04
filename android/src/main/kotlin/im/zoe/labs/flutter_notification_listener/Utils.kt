@@ -239,7 +239,7 @@ class Utils {
         }
 
         private fun <T> arrayConvertor(obj: T): List<Any?>
-            where T: List<*> {
+                where T: List<*> {
             val items = mutableListOf<Any?>()
             (obj as List<*>).forEach { items.add(marshal(it)) }
             return items
@@ -311,10 +311,10 @@ class Utils {
                 .putString(FlutterNotificationListenerPlugin.PROMOTE_SERVICE_ARGS_KEY, str)
                 .apply()
         }
-        
+
         companion object {
             val TAG = "PromoteConfig"
-            
+
             fun fromMap(map: Map<*, *>?): PromoteServiceConfig {
                 val cfg = PromoteServiceConfig()
                 map?.let { m ->
@@ -343,12 +343,13 @@ class Utils {
                 }
                 return cfg
             }
-            
+
             fun load(context: Context): PromoteServiceConfig {
-                val str = context.getSharedPreferences(FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
-                    .getString(FlutterNotificationListenerPlugin.PROMOTE_SERVICE_ARGS_KEY, "{}")
+                var str = context.getSharedPreferences(FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+                    .getString(FlutterNotificationListenerPlugin.PROMOTE_SERVICE_ARGS_KEY, null)
                 Log.d(TAG, "load the promote config: ${str.toString()}")
-                return fromString(str?:"{}")
+                if (str == null ) return PromoteServiceConfig()
+                return fromString(str)
             }
         }
     }

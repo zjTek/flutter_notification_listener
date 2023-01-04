@@ -15,10 +15,14 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
     var mSbn = sbn
 
-    var data: Map<String, Any?> = fromSbn(context, sbn)
+    var data: MutableMap<String, Any?> = fromSbn(context, sbn)
 
     val uid: String
         get() = data[NOTIFICATION_UNIQUE_ID] as String
+
+    fun updateData() {
+        data[NOTIFICATION_IS_REMOVE] = true
+    }
 
     companion object {
         private const val NOTIFICATION_PACKAGE_NAME = "package_name"
@@ -30,6 +34,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
         private const val NOTIFICATION_CAN_TAP = "canTap"
         private const val NOTIFICATION_KEY = "key"
         private const val NOTIFICATION_UNIQUE_ID = "_id"
+        private const val NOTIFICATION_IS_REMOVE = "removeFlag"
 
         fun genKey(vararg items: Any?): String {
             return Utils.md5(items.joinToString(separator="-"){ "$it" }).slice(IntRange(0, 12))
@@ -37,7 +42,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
         // https://developer.android.com/guide/topics/ui/notifiers/notifications
         // extra more fields from docs
-        fun fromSbn(context: Context, sbn: StatusBarNotification): Map<String, Any?> {
+        fun fromSbn(context: Context, sbn: StatusBarNotification): MutableMap<String, Any?> {
             // val map = HashMap<String, Any?>()
 
             // Retrieve extra object from notification to extract payload.
@@ -49,7 +54,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
             map[NOTIFICATION_TIMESTAMP] = sbn.postTime
             map[NOTIFICATION_PACKAGE_NAME] =  sbn.packageName
             map[NOTIFICATION_ID] = sbn.id
-
+            map[NOTIFICATION_IS_REMOVE] = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 map[NOTIFICATION_UID] = sbn.uid
             }
@@ -74,7 +79,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
             map[NOTIFICATION_ACTIONS] = getActions(context, notify)
 
-            return map
+            return map.toMutableMap()
         }
 
         private val EXTRA_KEYS_WHITE_LIST = arrayOf(
@@ -132,7 +137,12 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
         @RequiresApi(Build.VERSION_CODES.M)
         private fun convertIconToByteArray(context: Context, icon: Icon): ByteArray {
-            return convertBitmapToByteArray(icon.loadDrawable(context).toBitmap())
+            return try {
+                convertBitmapToByteArray(icon.loadDrawable(context).toBitmap())
+            } catch (e:java.lang.NullPointerException) {
+                byteArrayOf(0)
+            }
+
         }
 
         private fun convertBitmapToByteArray(bitmap: Bitmap): ByteArray {
@@ -156,7 +166,9 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
                     if (act.remoteInputs != null) {
                         act.remoteInputs.forEach {
                             val input = HashMap<String, Any>()
-                            input["label"] = it.label.toString()
+                            if (it.label != null) {
+                                input["label"] = it.label.toString()
+                            }
                             input["key"] = it.resultKey
                             // input["choices"] = it.choices
                             ins = ins + input

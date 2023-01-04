@@ -1,9 +1,8 @@
 package im.zoe.labs.flutter_notification_listener
 
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.RemoteInput
+import android.app.*
+import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -31,8 +30,9 @@ import org.json.JSONObject
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
+import android.net.Uri
 
-class NotificationsHandlerService: MethodChannel.MethodCallHandler, NotificationListenerService() {
+class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
     private lateinit var mBackgroundChannel: MethodChannel
     private lateinit var mContext: Context
@@ -41,59 +41,59 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
     private val eventsCache = HashMap<String, NotificationEvent>()
 
     override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: MethodChannel.Result) {
-      when (call.method) {
-          "service.initialized" -> {
-              initFinish()
-              return result.success(true)
-          }
-          // this should move to plugin
-          "service.promoteToForeground" -> {
-              // add data
-              val cfg = Utils.PromoteServiceConfig.fromMap(call.arguments as Map<*, *>).apply {
-                  foreground = true
-              }
-              return result.success(promoteToForeground(cfg))
-          }
-          "service.demoteToBackground" -> {
-              return result.success(demoteToBackground())
-          }
-          "service.tap" -> {
-              // tap the notification
-              Log.d(TAG, "tap the notification")
-              val args = call.arguments<ArrayList<*>?>()
-              val uid = args!![0]!! as String
-              return result.success(tapNotification(uid))
-          }
-          "service.tap_action" -> {
-              // tap the action
-              Log.d(TAG, "tap action of notification")
-              val args = call.arguments<ArrayList<*>?>()
-              val uid = args!![0]!! as String
-              val idx = args[1]!! as Int
-              return result.success(tapNotificationAction(uid, idx))
-          }
-          "service.send_input" -> {
-              // send the input data
-              Log.d(TAG, "set the content for input and the send action")
-              val args = call.arguments<ArrayList<*>?>()
-              val uid = args!![0]!! as String
-              val idx = args[1]!! as Int
-              val data = args[2]!! as Map<*, *>
-              return result.success(sendNotificationInput(uid, idx, data))
-          }
-          "service.get_full_notification" -> {
-              val args = call.arguments<ArrayList<*>?>()
-              val uid = args!![0]!! as String
-              if (!eventsCache.contains(uid)) {
-                  return result.error("notFound", "can't found this notification $uid", "")
-              }
-              return result.success(Utils.Marshaller.marshal(eventsCache[uid]?.mSbn))
-          }
-          else -> {
-              Log.d(TAG, "unknown method ${call.method}")
-              result.notImplemented()
-          }
-      }
+        when (call.method) {
+            "service.initialized" -> {
+                initFinish()
+                return result.success(true)
+            }
+            // this should move to plugin
+            "service.promoteToForeground" -> {
+                // add data
+                val cfg = Utils.PromoteServiceConfig.fromMap(call.arguments as Map<*, *>).apply {
+                    foreground = true
+                }
+                return result.success(promoteToForeground(cfg))
+            }
+            "service.demoteToBackground" -> {
+                return result.success(demoteToBackground())
+            }
+            "service.tap" -> {
+                // tap the notification
+                Log.d(TAG, "tap the notification")
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                return result.success(tapNotification(uid))
+            }
+            "service.tap_action" -> {
+                // tap the action
+                Log.d(TAG, "tap action of notification")
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                val idx = args[1]!! as Int
+                return result.success(tapNotificationAction(uid, idx))
+            }
+            "service.send_input" -> {
+                // send the input data
+                Log.d(TAG, "set the content for input and the send action")
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                val idx = args[1]!! as Int
+                val data = args[2]!! as Map<*, *>
+                return result.success(sendNotificationInput(uid, idx, data))
+            }
+            "service.get_full_notification" -> {
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                if (!eventsCache.contains(uid)) {
+                    return result.error("notFound", "can't found this notification $uid", "")
+                }
+                return result.success(Utils.Marshaller.marshal(eventsCache[uid]?.mSbn))
+            }
+            else -> {
+                Log.d(TAG, "unknown method ${call.method}")
+                result.notImplemented()
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -124,7 +124,6 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
 
         // store the service instance
         instance = this
-
         Log.i(TAG, "notification listener service onCreate")
         startListenerService(this)
     }
@@ -168,6 +167,16 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         super.onNotificationRemoved(sbn)
         if (sbn == null) return
         val evt = NotificationEvent(mContext, sbn)
+        evt.updateData()
+        synchronized(sServiceStarted) {
+            if (!sServiceStarted.get()) {
+                Log.d(TAG, "service is not start try to queue the event")
+                queue.add(evt)
+            } else {
+                Log.d(TAG, "send event to flutter side immediately!")
+                Handler(mContext.mainLooper).post { sendEvent(evt) }
+            }
+        }
         // remove the event from cache
         eventsCache.remove(evt.uid)
         Log.d(TAG, "notification removed: ${evt.uid}")
@@ -199,7 +208,7 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         }
 
         // get args from store or args
-        val cfg = cfg ?: Utils.PromoteServiceConfig.load(this)
+        var cfg = cfg
         // make the service to foreground
 
         // take a wake lock
@@ -211,10 +220,15 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         }
 
         // create a channel for notification
-        val channel = NotificationChannel(CHANNEL_ID, "Flutter Notifications Listener Plugin", NotificationManager.IMPORTANCE_HIGH)
+        val channel = NotificationChannel(
+            CHANNEL_ID,
+            "Flutter Notifications Listener Plugin",
+            NotificationManager.IMPORTANCE_HIGH
+        )
         val imageId = resources.getIdentifier("ic_launcher", "mipmap", packageName)
-        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
-
+        (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
+            channel
+        )
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(cfg.title)
             .setContentText(cfg.description)
@@ -265,7 +279,10 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
             return false
         }
         if (n.mSbn.notification.actions.size <= idx) {
-            Log.e(TAG, "tap action out of range: size ${n.mSbn.notification.actions.size} index $idx")
+            Log.e(
+                TAG,
+                "tap action out of range: size ${n.mSbn.notification.actions.size} index $idx"
+            )
             return false
         }
 
@@ -290,7 +307,10 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
             return false
         }
         if (n.mSbn.notification.actions.size <= idx) {
-            Log.e(TAG, "send inputs out of range: size ${n.mSbn.notification.actions.size} index $idx")
+            Log.e(
+                TAG,
+                "send inputs out of range: size ${n.mSbn.notification.actions.size} index $idx"
+            )
             return false
         }
 
@@ -335,8 +355,10 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         private val TAG = "NotificationsListenerService"
 
         private const val ONGOING_NOTIFICATION_ID = 100
+
         @JvmStatic
         private val WAKELOCK_TAG = "IsolateHolderService::WAKE_LOCK"
+
         @JvmStatic
         val ACTION_SHUTDOWN = "SHUTDOWN"
 
@@ -344,20 +366,22 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
 
         @JvmStatic
         private var sBackgroundFlutterEngine: FlutterEngine? = null
+
         @JvmStatic
         private val sServiceStarted = AtomicBoolean(false)
 
         private const val BG_METHOD_CHANNEL_NAME = "flutter_notification_listener/bg_method"
 
         private const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
-        private const val ACTION_NOTIFICATION_LISTENER_SETTINGS = "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
-
+        private const val ACTION_NOTIFICATION_LISTENER_SETTINGS =
+            "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
         const val NOTIFICATION_INTENT_KEY = "object"
         const val NOTIFICATION_INTENT = "notification_event"
 
         fun permissionGiven(context: Context): Boolean {
             val packageName = context.packageName
-            val flat = Settings.Secure.getString(context.contentResolver, ENABLED_NOTIFICATION_LISTENERS)
+            val flat =
+                Settings.Secure.getString(context.contentResolver, ENABLED_NOTIFICATION_LISTENERS)
             if (!TextUtils.isEmpty(flat)) {
                 val names = flat.split(":").toTypedArray()
                 for (name in names) {
@@ -373,7 +397,97 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         }
 
         fun openPermissionSettings(context: Context): Boolean {
-            context.startActivity(Intent(ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            context.startActivity(
+                Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+                )
+            )
+            return true
+        }
+
+        fun openAppSettings(context: Context): Boolean {
+            context.startActivity(
+                Intent(Settings.ACTION_SETTINGS).addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+                )
+            )
+            return true
+        }
+
+        fun openBatterySettings(context: Context): Boolean {
+            context.startActivity(
+                Intent(Settings.ACTION_SETTINGS).addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK
+                )
+            )
+            return true
+        }
+
+        fun getManufacture(): String {
+            return Build.MANUFACTURER
+        }
+
+        fun openAppLaunchSettings(context: Context): Boolean {
+            val mobileType = Build.MANUFACTURER
+            var intent = Intent()
+            try {
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                Log.e("HLQ_Struggle", "******************当前手机型号为：" + mobileType)
+                var componentName: ComponentName? = null
+                if (mobileType == "Xiaomi") { // 红米Note4测试通过
+                    componentName = ComponentName(
+                        "com.miui.securitycenter",
+                        "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                    )
+                } else if (mobileType == "Letv") { // 乐视2测试通过
+                    intent.action = "com.letv.android.permissionautoboot"
+                } else if (mobileType == "samsung") { // 三星Note5测试通过
+                    componentName = ComponentName(
+                        "com.samsung.android.sm_cn",
+                        "com.samsung.android.sm.ui.ram.AutoRunActivity"
+                    )
+                } else if (mobileType == "HUAWEI") { // 华为测试通过
+                    componentName =
+                        ComponentName.unflattenFromString("com.huawei.systemmanager/.startupmgr.ui.StartupNormalAppListActivity") //跳自启动管理
+                    //SettingOverlayView.show(context);
+                } else if (mobileType == "vivo") { // VIVO测试通过
+                    componentName =
+                        ComponentName.unflattenFromString("com.iqoo.secure/.safeguard.PurviewTabActivity")
+                } else if (mobileType == "Meizu") {
+                    // 针对魅族，我们只能通过魅族内置手机管家去设置自启动，所以我在这里直接跳转到魅族内置手机管家界面，具体结果请看图
+                    componentName =
+                        ComponentName.unflattenFromString("com.meizu.safe/.permission.PermissionMainActivity")
+                } else if (mobileType == "OPPO") { // OPPO R8205测试通过
+                    componentName =
+                        ComponentName.unflattenFromString("com.oppo.safe/.permission.startup.StartupAppListActivity")
+                } else if (mobileType == "ulong") { // 360手机 未测试
+                    componentName = ComponentName(
+                        "com.yulong.android.coolsafe",
+                        ".ui.activity.autorun.AutoRunListActivity"
+                    )
+                } else {
+                    // 针对于其他设备，我们只能调整当前系统app查看详情界面
+                    // 在此根据用户手机当前版本跳转系统设置界面
+                    if (Build.VERSION.SDK_INT >= 9) {
+                        intent.action = "android.settings.APPLICATION_DETAILS_SETTINGS"
+                        intent.data = Uri.fromParts("package", context.packageName, null)
+                    } else if (Build.VERSION.SDK_INT <= 8) {
+                        intent.action = Intent.ACTION_VIEW
+                        intent.setClassName(
+                            "com.android.settings",
+                            "com.android.settings.InstalledAppDetails"
+                        )
+                        intent.putExtra(
+                            "com.android.settings.ApplicationPkgName",
+                            context.packageName
+                        )
+                    }
+                }
+                intent.component = componentName
+                context.startActivity(intent)
+            } catch (e: Exception) { //抛出异常就直接打开设置页面
+                return false
+            }
             return true
         }
 
@@ -400,7 +514,8 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
     }
 
     private fun getFlutterEngine(context: Context): FlutterEngine {
-        var eng = FlutterEngineCache.getInstance().get(FlutterNotificationListenerPlugin.FLUTTER_ENGINE_CACHE_KEY)
+        var eng = FlutterEngineCache.getInstance()
+            .get(FlutterNotificationListenerPlugin.FLUTTER_ENGINE_CACHE_KEY)
         if (eng != null) return eng
 
         Log.i(TAG, "flutter engine cache is null, create a new one")
@@ -412,21 +527,27 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
 
         // call the flutter side init
         // get the call back handle information
-        val cb = context.getSharedPreferences(FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+        val cb = context.getSharedPreferences(
+            FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
+            Context.MODE_PRIVATE
+        )
             .getLong(FlutterNotificationListenerPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0)
 
         if (cb != 0L) {
             Log.d(TAG, "try to find callback: $cb")
             val info = FlutterCallbackInformation.lookupCallbackInformation(cb)
-            val args = DartExecutor.DartCallback(context.assets,
-                FlutterInjector.instance().flutterLoader().findAppBundlePath(), info)
+            val args = DartExecutor.DartCallback(
+                context.assets,
+                FlutterInjector.instance().flutterLoader().findAppBundlePath(), info
+            )
             // call the callback
             eng.dartExecutor.executeDartCallback(args)
         } else {
             Log.e(TAG, "Fatal: no callback register")
         }
 
-        FlutterEngineCache.getInstance().put(FlutterNotificationListenerPlugin.FLUTTER_ENGINE_CACHE_KEY, eng)
+        FlutterEngineCache.getInstance()
+            .put(FlutterNotificationListenerPlugin.FLUTTER_ENGINE_CACHE_KEY, eng)
         return eng
     }
 
@@ -446,7 +567,11 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
         synchronized(sServiceStarted) {
             // promote to foreground
             // TODO: take from intent, currently just load form store
-            promoteToForeground(Utils.PromoteServiceConfig.load(context))
+            var status =  promoteToForeground(Utils.PromoteServiceConfig.load(this));
+            if (!status) {
+                // may cause ANR
+                startForeground(1, Notification())
+            }
 
             // we should to update
             Log.d(TAG, "service's flutter engine is null, should update one")
@@ -460,7 +585,10 @@ class NotificationsHandlerService: MethodChannel.MethodCallHandler, Notification
     private fun sendEvent(evt: NotificationEvent) {
         Log.d(TAG, "send notification event: ${evt.data}")
         if (callbackHandle == 0L) {
-            callbackHandle = mContext.getSharedPreferences(FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+            callbackHandle = mContext.getSharedPreferences(
+                FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
+                Context.MODE_PRIVATE
+            )
                 .getLong(FlutterNotificationListenerPlugin.CALLBACK_HANDLE_KEY, 0)
         }
 

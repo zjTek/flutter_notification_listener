@@ -96,6 +96,8 @@ class NotificationEvent {
   /// the key of status bar notification
   String? key;
 
+  bool? remove;
+
   /// the uid of status bar notification
   int? uid;
 
@@ -158,6 +160,7 @@ class NotificationEvent {
   NotificationEvent({
     this.uniqueId,
     this.key,
+    this.remove,
     this.id,
     this.uid,
     this.channelId,
@@ -167,7 +170,6 @@ class NotificationEvent {
     this.text,
     this.message,
     this.timestamp,
-    // this.icon,
     this.hasLargeIcon,
     this.largeIcon,
     this.canTap,
@@ -181,6 +183,7 @@ class NotificationEvent {
         map['largeIcon'] != null && (map['largeIcon'] as Uint8List).isNotEmpty;
     var evt = NotificationEvent(
       createAt: DateTime.now(),
+      remove: map['remove'],
       uniqueId: map["_id"],
       key: map["key"],
       uid: map['uid'],
