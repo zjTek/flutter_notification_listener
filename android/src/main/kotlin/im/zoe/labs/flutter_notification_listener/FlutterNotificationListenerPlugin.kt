@@ -202,7 +202,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       "plugin.openBatterySettings" -> {
         return result.success(NotificationsHandlerService.openBatterySettings(mContext))
       }
-      "plugin.openAppLauchSettings" -> {
+      "plugin.openAppLaunchSettings" -> {
         return result.success(NotificationsHandlerService.openAppLaunchSettings(mContext))
       }
       "plugin.isServiceRunning" -> {

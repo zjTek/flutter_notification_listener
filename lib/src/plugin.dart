@@ -51,8 +51,8 @@ class NotificationsListener {
     return await _methodChannel.invokeMethod('plugin.openAppSettings');
   }
   /// Open the settings activity
-  static Future<bool> openAppLaucnSettings() async {
-    return await _methodChannel.invokeMethod('plugin.openAppLaucnSettings');
+  static Future<bool> openAppLaunchSettings() async {
+    return await _methodChannel.invokeMethod('plugin.openAppLaunchSettings');
   }
 
   /// Initialize the plugin and request relevant permissions from the user.
