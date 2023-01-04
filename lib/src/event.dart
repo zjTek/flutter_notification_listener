@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_notification_listener/flutter_notification_listener.dart';
 
+
 /// ActionInput is the remote inputs for action
 class ActionInput {
   String? label;

@@ -208,7 +208,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 //        }
 
         // get args from store or args
-        var cfg = cfg
+        var cfg = cfg ?: Utils.PromoteServiceConfig()
         // make the service to foreground
 
         // take a wake lock
@@ -567,12 +567,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         synchronized(sServiceStarted) {
             // promote to foreground
             // TODO: take from intent, currently just load form store
-            var status =  promoteToForeground(Utils.PromoteServiceConfig.load(this));
-            if (!status) {
-                // may cause ANR
-                startForeground(1, Notification())
-            }
-
+            promoteToForeground(Utils.PromoteServiceConfig.load(this));
             // we should to update
             Log.d(TAG, "service's flutter engine is null, should update one")
             updateFlutterEngine(context)
