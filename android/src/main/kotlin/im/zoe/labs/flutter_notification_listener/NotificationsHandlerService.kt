@@ -2,7 +2,6 @@ package im.zoe.labs.flutter_notification_listener
 
 import android.annotation.SuppressLint
 import android.app.*
-import android.app.PendingIntent.FLAG_UPDATE_CURRENT
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -17,7 +16,6 @@ import android.service.notification.StatusBarNotification
 import android.text.TextUtils
 import android.util.Log
 import androidx.annotation.NonNull
-import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
@@ -26,7 +24,6 @@ import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.view.FlutterCallbackInformation
-import org.json.JSONObject
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
@@ -145,12 +142,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         instance = this
         Log.i(TAG, "notification listener service onCreate")
         startListenerService(this)
-        val telephonyManager: TelephonyManager =
-            getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-        telephonyManager.listen(
-            PhoneCallStateListener(mContext),
-            PhoneStateListener.LISTEN_CALL_STATE
-        )
     }
 
     override fun onDestroy() {
@@ -534,6 +525,11 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             instance?.initFinish()
         }
 
+        fun updatePhoneCallListener(context: Context) {
+            val telephonyManager: TelephonyManager = context.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+            telephonyManager.listen(PhoneCallStateListener(context), PhoneStateListener.LISTEN_CALL_STATE)
+        }
+
         fun sendNotification(context: Context, map: Map<String, Any>) {
             Log.d(TAG, "send call to flutter side immediately!")
             Handler(context.mainLooper).post { instance?.sendCallAndSms(map) }
@@ -595,7 +591,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             // promote to foreground
             // TODO: take from intent, currently just load form store
             promoteToForeground(Utils.PromoteServiceConfig.load(this));
-            // we should to update
+            // we should to ee
             Log.d(TAG, "service's flutter engine is null, should update one")
             updateFlutterEngine(context)
 

@@ -9,13 +9,8 @@ import androidx.annotation.RequiresApi
 import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
-import io.flutter.plugin.common.JSONMessageCodec
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import org.json.JSONObject
-import java.nio.ByteBuffer
-import java.util.*
-import android.telephony.TelephonyManager
 
 class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
   private var eventSink: EventChannel.EventSink? = null
@@ -37,14 +32,6 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     // store the flutter engine
     val engine = flutterPluginBinding.flutterEngine
     FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_CACHE_KEY, engine)
-
-    // TODO: remove those code
-//    val receiver = NotificationReceiver()
-//    val intentFilter = IntentFilter()
-//    intentFilter.addAction(NotificationsHandlerService.NOTIFICATION_INTENT)
-//    mContext.registerReceiver(receiver, intentFilter)
-
-    Log.i(TAG, "attached engine finished")
   }
 
   override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
@@ -100,6 +87,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       // TODO: update the flutter engine
       // call the service to update the flutter engine
       NotificationsHandlerService.updateFlutterEngine(context)
+      NotificationsHandlerService.updatePhoneCallListener(context)
     }
 
     fun internalStartService(context: Context, cfg: Utils.PromoteServiceConfig?): Boolean {
