@@ -244,7 +244,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         // create a channel for notification
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Flutter Notifications Listener Plugin",
+            "Power band Notifications Listener Plugin",
             NotificationManager.IMPORTANCE_HIGH
         )
         val imageId = resources.getIdentifier("ic_launcher", "mipmap", packageName)
@@ -605,6 +605,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     private fun sendCallAndSms(map: Map<String, Any>) {
+        Log.d(TAG, "send status ${map} ")
         if (callbackHandle == 0L) {
             callbackHandle = mContext.getSharedPreferences(
                 FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
