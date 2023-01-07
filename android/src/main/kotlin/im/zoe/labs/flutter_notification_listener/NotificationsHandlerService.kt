@@ -113,6 +113,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
         // if get shutdown release the wake lock
         when (intent?.action) {
             ACTION_SHUTDOWN -> {
@@ -516,6 +517,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             val receiver = ComponentName(context, NotificationsHandlerService::class.java)
             val pm = context.packageManager
             pm.setComponentEnabledSetting(receiver, state, PackageManager.DONT_KILL_APP)
+            sytem.u
         }
 
         fun updateFlutterEngine(context: Context) {
@@ -530,7 +532,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             telephonyManager.listen(PhoneCallStateListener(context), PhoneStateListener.LISTEN_CALL_STATE)
         }
 
-        fun sendNotification(context: Context, map: Map<String, Any>) {
+        fun sendNotification(context: Context, map: Map<String, Any?>) {
             Log.d(TAG, "send call to flutter side immediately!")
             Handler(context.mainLooper).post { instance?.sendCallAndSms(map) }
         }
