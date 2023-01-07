@@ -201,7 +201,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     private fun isTargetNotification(packName: String): Boolean {
-        return notifyList.contains(packName)
+        return notifyList.any { packName.contains(it) }
     }
 
     private fun initFinish() {

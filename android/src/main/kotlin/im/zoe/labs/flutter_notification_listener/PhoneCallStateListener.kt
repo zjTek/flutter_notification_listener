@@ -21,7 +21,7 @@ class PhoneCallStateListener(val mContext: Context): PhoneStateListener() {
                 callStatus = "CALL_STATE_OFFHOOK"
             }
         }
-        val map = mapOf("package_name" to "call.status","text" to callStatus)
+        val map = mapOf("title" to "Call", "package_name" to "call.status","text" to callStatus)
         NotificationsHandlerService.sendNotification(mContext,map)
     }
 
