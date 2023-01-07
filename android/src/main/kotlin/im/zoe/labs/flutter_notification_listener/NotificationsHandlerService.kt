@@ -15,7 +15,6 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.text.TextUtils
 import android.util.Log
-import androidx.annotation.NonNull
 import androidx.core.app.NotificationCompat
 import io.flutter.FlutterInjector
 import io.flutter.embedding.engine.FlutterEngine
@@ -27,9 +26,9 @@ import io.flutter.view.FlutterCallbackInformation
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
-import android.net.Uri
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
+import androidx.annotation.RequiresApi
 
 class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
@@ -56,7 +55,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     // notification event cache: packageName_id -> event
     private val eventsCache = HashMap<String, NotificationEvent>()
 
-    override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: MethodChannel.Result) {
+    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "service.initialized" -> {
                 initFinish()
@@ -222,14 +221,14 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 //        }
 
         // get args from store or args
-        var cfg = cfg ?: Utils.PromoteServiceConfig()
+        val cfgHere = cfg ?: Utils.PromoteServiceConfig()
         // make the service to foreground
 
         // take a wake lock
         (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
             newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
                 setReferenceCounted(false)
-                acquire()
+                acquire(5*60*1000L /*10 minutes*/)
             }
         }
 
@@ -244,10 +243,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             channel
         )
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle(cfg.title)
-            .setContentText(cfg.description)
-            .setShowWhen(cfg.showWhen ?: false)
-            .setSubText(cfg.subTitle)
+            .setContentTitle(cfgHere.title)
+            .setContentText(cfgHere.description)
+            .setShowWhen(cfgHere.showWhen ?: false)
+            .setSubText(cfgHere.subTitle)
             .setSmallIcon(imageId)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
@@ -387,10 +386,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         private const val BG_METHOD_CHANNEL_NAME = "flutter_notification_listener/bg_method"
 
         private const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
-        private const val ACTION_NOTIFICATION_LISTENER_SETTINGS =
-            "android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"
         const val NOTIFICATION_INTENT_KEY = "object"
-        const val NOTIFICATION_INTENT = "notification_event"
 
         fun permissionGiven(context: Context): Boolean {
             val packageName = context.packageName
@@ -410,6 +406,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             return false
         }
 
+        @RequiresApi(Build.VERSION_CODES.LOLLIPOP_MR1)
         fun openPermissionSettings(context: Context): Boolean {
             context.startActivity(
                 Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).addFlags(
@@ -443,7 +440,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         fun openAppLaunchSettings(context: Context): Boolean {
             val mobileType = Build.MANUFACTURER
-            var intent = Intent()
+            val intent = Intent()
             try {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 Log.e("HLQ_Struggle", "******************当前手机型号为：" + mobileType)
@@ -479,23 +476,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                         "com.yulong.android.coolsafe",
                         ".ui.activity.autorun.AutoRunListActivity"
                     )
-                } else {
-                    // 针对于其他设备，我们只能调整当前系统app查看详情界面
-                    // 在此根据用户手机当前版本跳转系统设置界面
-                    if (Build.VERSION.SDK_INT >= 9) {
-                        intent.action = "android.settings.APPLICATION_DETAILS_SETTINGS"
-                        intent.data = Uri.fromParts("package", context.packageName, null)
-                    } else if (Build.VERSION.SDK_INT <= 8) {
-                        intent.action = Intent.ACTION_VIEW
-                        intent.setClassName(
-                            "com.android.settings",
-                            "com.android.settings.InstalledAppDetails"
-                        )
-                        intent.putExtra(
-                            "com.android.settings.ApplicationPkgName",
-                            context.packageName
-                        )
-                    }
                 }
                 intent.component = componentName
                 context.startActivity(intent)
@@ -517,7 +497,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             val receiver = ComponentName(context, NotificationsHandlerService::class.java)
             val pm = context.packageManager
             pm.setComponentEnabledSetting(receiver, state, PackageManager.DONT_KILL_APP)
-            sytem.u
         }
 
         fun updateFlutterEngine(context: Context) {
@@ -592,7 +571,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         synchronized(sServiceStarted) {
             // promote to foreground
             // TODO: take from intent, currently just load form store
-            promoteToForeground(Utils.PromoteServiceConfig.load(this));
+            promoteToForeground(Utils.PromoteServiceConfig.load(this))
             // we should to ee
             Log.d(TAG, "service's flutter engine is null, should update one")
             updateFlutterEngine(context)
@@ -602,7 +581,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         Log.d(TAG, "service start finished")
     }
 
-    private fun sendCallAndSms(map: Map<String, Any>) {
+    private fun sendCallAndSms(map: Map<String, Any?>) {
         Log.d(TAG, "send status ${map} ")
         if (callbackHandle == 0L) {
             callbackHandle = mContext.getSharedPreferences(
