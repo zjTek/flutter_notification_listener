@@ -31,11 +31,30 @@ import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
 import android.net.Uri
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyManager
 
 class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
     private lateinit var mBackgroundChannel: MethodChannel
     private lateinit var mContext: Context
+    private var notifyList = arrayOf(
+        "call.status",
+        "contacts",
+        "incallui",
+        "com.android.mms",
+        "com.samsung.android.messaging",
+        "com.tencent.mobileqq",
+        "com.tencent.mm",
+        "com.facebook",
+        "com.kakao.talk",
+        "jp.naver.line.android",
+        "com.instagram.android",
+        "com.whatsapp",
+        "com.twitter.android",
+        "com.skype",
+        "com.youtube.android"
+    )
 
     // notification event cache: packageName_id -> event
     private val eventsCache = HashMap<String, NotificationEvent>()
@@ -126,6 +145,12 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         instance = this
         Log.i(TAG, "notification listener service onCreate")
         startListenerService(this)
+        val telephonyManager: TelephonyManager =
+            getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+        telephonyManager.listen(
+            PhoneCallStateListener(mContext),
+            PhoneStateListener.LISTEN_CALL_STATE
+        )
     }
 
     override fun onDestroy() {
@@ -144,9 +169,12 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         super.onNotificationPosted(sbn)
 
+        if (!isTargetNotification(sbn.packageName)) {
+            return
+        }
+
         FlutterInjector.instance().flutterLoader().startInitialization(mContext)
         FlutterInjector.instance().flutterLoader().ensureInitializationComplete(mContext, null)
-
         val evt = NotificationEvent(mContext, sbn)
 
         // store the evt to cache
@@ -167,19 +195,13 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         super.onNotificationRemoved(sbn)
         if (sbn == null) return
         val evt = NotificationEvent(mContext, sbn)
-        evt.updateData()
-        synchronized(sServiceStarted) {
-            if (!sServiceStarted.get()) {
-                Log.d(TAG, "service is not start try to queue the event")
-                queue.add(evt)
-            } else {
-                Log.d(TAG, "send event to flutter side immediately!")
-                Handler(mContext.mainLooper).post { sendEvent(evt) }
-            }
-        }
         // remove the event from cache
         eventsCache.remove(evt.uid)
         Log.d(TAG, "notification removed: ${evt.uid}")
+    }
+
+    private fun isTargetNotification(packName: String): Boolean {
+        return notifyList.contains(packName)
     }
 
     private fun initFinish() {
@@ -352,7 +374,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         var instance: NotificationsHandlerService? = null
 
         @JvmStatic
-        private val TAG = "NotificationsListenerService"
+        private val TAG = "NotifiListenerService"
 
         private const val ONGOING_NOTIFICATION_ID = 100
 
@@ -511,6 +533,11 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             // we need to `finish init` manually
             instance?.initFinish()
         }
+
+        fun sendNotification(context: Context, map: Map<String, Any>) {
+            Log.d(TAG, "send call to flutter side immediately!")
+            Handler(context.mainLooper).post { instance?.sendCallAndSms(map) }
+        }
     }
 
     private fun getFlutterEngine(context: Context): FlutterEngine {
@@ -575,6 +602,25 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             sServiceStarted.set(true)
         }
         Log.d(TAG, "service start finished")
+    }
+
+    private fun sendCallAndSms(map: Map<String, Any>) {
+        if (callbackHandle == 0L) {
+            callbackHandle = mContext.getSharedPreferences(
+                FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
+                Context.MODE_PRIVATE
+            )
+                .getLong(FlutterNotificationListenerPlugin.CALLBACK_HANDLE_KEY, 0)
+        }
+
+        // why mBackgroundChannel can be null?
+
+        try {
+            // don't care about the method name
+            mBackgroundChannel.invokeMethod("sink_event", listOf(callbackHandle, map))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun sendEvent(evt: NotificationEvent) {

@@ -20,10 +20,6 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
     val uid: String
         get() = data[NOTIFICATION_UNIQUE_ID] as String
 
-    fun updateData() {
-        data[NOTIFICATION_IS_REMOVE] = true
-    }
-
     companion object {
         private const val NOTIFICATION_PACKAGE_NAME = "package_name"
         private const val NOTIFICATION_TIMESTAMP = "timestamp"
@@ -34,7 +30,6 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
         private const val NOTIFICATION_CAN_TAP = "canTap"
         private const val NOTIFICATION_KEY = "key"
         private const val NOTIFICATION_UNIQUE_ID = "_id"
-        private const val NOTIFICATION_IS_REMOVE = "removeFlag"
 
         fun genKey(vararg items: Any?): String {
             return Utils.md5(items.joinToString(separator="-"){ "$it" }).slice(IntRange(0, 12))
@@ -47,14 +42,12 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
             // Retrieve extra object from notification to extract payload.
             val notify = sbn.notification
-
             val map = turnExtraToMap(context, notify?.extras)
 
             // add 3 sbn fields
             map[NOTIFICATION_TIMESTAMP] = sbn.postTime
             map[NOTIFICATION_PACKAGE_NAME] =  sbn.packageName
             map[NOTIFICATION_ID] = sbn.id
-            map[NOTIFICATION_IS_REMOVE] = false
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 map[NOTIFICATION_UID] = sbn.uid
             }
