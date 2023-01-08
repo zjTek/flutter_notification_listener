@@ -61,6 +61,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 initFinish()
                 return result.success(true)
             }
+            "service.registerCallListener" -> {
+                updatePhoneListener()
+                return result.success(true)
+            }
             // this should move to plugin
             "service.promoteToForeground" -> {
                 // add data
@@ -156,7 +160,15 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         super.onTaskRemoved(rootIntent)
         Log.i(TAG, "notification listener service onTaskRemoved")
     }
-
+    private  fun onPhoneStatePosted(map: Map<String, Any?>){
+        Log.d(TAG,"onPhoneStatePosted")
+        synchronized(sServiceStarted) {
+            if (sServiceStarted.get()) {
+                Log.d(TAG, "send event to flutter side immediately!")
+                Handler(mContext.mainLooper).post { sendEvent(map) }
+            }
+        }
+    }
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         super.onNotificationPosted(sbn)
 
@@ -177,7 +189,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 queue.add(evt)
             } else {
                 Log.d(TAG, "send event to flutter side immediately!")
-                Handler(mContext.mainLooper).post { sendEvent(evt) }
+                Handler(mContext.mainLooper).post { sendEvent(evt.data) }
             }
         }
     }
@@ -198,7 +210,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private fun initFinish() {
         Log.d(TAG, "service's flutter engine initialize finished")
         synchronized(sServiceStarted) {
-            while (!queue.isEmpty()) sendEvent(queue.remove())
+            while (!queue.isEmpty()) sendEvent(queue.remove().data)
             sServiceStarted.set(true)
         }
     }
@@ -228,7 +240,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
             newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
                 setReferenceCounted(false)
-                acquire(5*60*1000L /*10 minutes*/)
+                acquire(5 * 60 * 1000L /*10 minutes*/)
             }
         }
 
@@ -506,14 +518,9 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             instance?.initFinish()
         }
 
-        fun updatePhoneCallListener(context: Context) {
-            val telephonyManager: TelephonyManager = context.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-            telephonyManager.listen(PhoneCallStateListener(context), PhoneStateListener.LISTEN_CALL_STATE)
-        }
-
-        fun sendNotification(context: Context, map: Map<String, Any?>) {
+        fun sendNotification(map: Map<String, Any?>) {
             Log.d(TAG, "send call to flutter side immediately!")
-            Handler(context.mainLooper).post { instance?.sendCallAndSms(map) }
+            instance?.onPhoneStatePosted(map)
         }
     }
 
@@ -566,6 +573,13 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         mBackgroundChannel.setMethodCallHandler(this)
     }
 
+    private fun updatePhoneListener() {
+        Log.d(TAG, "updatePhoneListener")
+        val telephonyManager: TelephonyManager =
+            mContext.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+        telephonyManager.listen(PhoneCallStateListener(), PhoneStateListener.LISTEN_CALL_STATE)
+    }
+
     private fun startListenerService(context: Context) {
         Log.d(TAG, "start listener service")
         synchronized(sServiceStarted) {
@@ -601,8 +615,9 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         }
     }
 
-    private fun sendEvent(evt: NotificationEvent) {
-        Log.d(TAG, "send notification event: ${evt.data}")
+    private fun sendEvent(data:Map<String, Any?>)
+    {
+        Log.d(TAG, "send notification event: ${data}")
         if (callbackHandle == 0L) {
             callbackHandle = mContext.getSharedPreferences(
                 FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
@@ -615,7 +630,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         try {
             // don't care about the method name
-            mBackgroundChannel.invokeMethod("sink_event", listOf(callbackHandle, evt.data))
+            mBackgroundChannel.invokeMethod("sink_event", listOf(callbackHandle, data))
         } catch (e: Exception) {
             e.printStackTrace()
         }

@@ -15,7 +15,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
     var mSbn = sbn
 
-    var data: MutableMap<String, Any?> = fromSbn(context, sbn)
+    var data: Map<String, Any?> = fromSbn(context, sbn)
 
     val uid: String
         get() = data[NOTIFICATION_UNIQUE_ID] as String
@@ -72,7 +72,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
             map[NOTIFICATION_ACTIONS] = getActions(context, notify)
 
-            return map.toMutableMap()
+            return map
         }
 
         private val EXTRA_KEYS_WHITE_LIST = arrayOf(

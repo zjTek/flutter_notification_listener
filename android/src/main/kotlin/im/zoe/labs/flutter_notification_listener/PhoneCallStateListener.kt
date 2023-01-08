@@ -4,7 +4,7 @@ import android.content.Context
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 
-class PhoneCallStateListener(val mContext: Context): PhoneStateListener() {
+class PhoneCallStateListener: PhoneStateListener() {
     override fun onCallStateChanged(state: Int, phoneNumber: String?) {
         super.onCallStateChanged(state, phoneNumber)
         var callStatus = ""
@@ -20,7 +20,7 @@ class PhoneCallStateListener(val mContext: Context): PhoneStateListener() {
             }
         }
         val map:Map<String,Any?> = mapOf("title" to "Call", "package_name" to "call.status","text" to callStatus)
-        NotificationsHandlerService.sendNotification(mContext,map)
+        NotificationsHandlerService.sendNotification(map)
     }
 
 }

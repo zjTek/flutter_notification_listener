@@ -90,7 +90,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       NotificationsHandlerService.updatePhoneCallListener(context)
     }
 
-    fun internalStartService(context: Context, cfg: Utils.PromoteServiceConfig?): Boolean {
+    private fun internalStartService(context: Context, cfg: Utils.PromoteServiceConfig?): Boolean {
       if (!NotificationsHandlerService.permissionGiven(context)) {
         Log.e(TAG, "can't get permission to start service.")
         return false

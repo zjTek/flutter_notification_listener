@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:isolate';
 import 'dart:ui';
 import 'dart:async';
@@ -46,10 +45,12 @@ class NotificationsListener {
   static Future<void> openPermissionSettings() async {
     return await _methodChannel.invokeMethod('plugin.openPermissionSettings');
   }
+
   /// Open the settings activity
   static Future<void> openAppSettings() async {
     return await _methodChannel.invokeMethod('plugin.openAppSettings');
   }
+
   /// Open the settings activity
   static Future<bool> openAppLaunchSettings() async {
     return await _methodChannel.invokeMethod('plugin.openAppLaunchSettings');
@@ -132,6 +133,10 @@ class NotificationsListener {
   /// demote the service to background
   static Future<void> demoteToBackground() async =>
       await _bgMethodChannel.invokeMethod('service.demoteToBackground');
+
+  /// register call listener
+  static Future<void> registerCallStateListener() async =>
+      await _bgMethodChannel.invokeMethod('service.registerCallListener');
 
   /// tap the notification
   static Future<bool> tapNotification(String uid) async {
