@@ -87,7 +87,6 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       // TODO: update the flutter engine
       // call the service to update the flutter engine
       NotificationsHandlerService.updateFlutterEngine(context)
-      NotificationsHandlerService.updatePhoneCallListener(context)
     }
 
     private fun internalStartService(context: Context, cfg: Utils.PromoteServiceConfig?): Boolean {
