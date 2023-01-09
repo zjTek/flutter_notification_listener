@@ -63,6 +63,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 initFinish()
                 return result.success(true)
             }
+            "service.registerCallListener" -> {
+                registerPhoneListener()
+                return result.success(true)
+            }
             // this should move to plugin
             "service.promoteToForeground" -> {
                 // add data
@@ -115,7 +119,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "notification listener service onStartCommand")
-        registerPhoneListener()
         // if get shutdown release the wake lock
         when (intent?.action) {
             ACTION_SHUTDOWN -> {
@@ -144,6 +147,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         // store the service instance
         instance = this
         Log.d(TAG, "notification listener service onCreate")
+        registerPhoneListener()
         startListenerService(this)
     }
 

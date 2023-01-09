@@ -156,7 +156,12 @@ class NotificationsListener {
             .invokeMethod<bool>("service.send_input", [uid, actionId, map]) ??
         false;
   }
-
+  /// register Call listener
+  /// if service is already there
+  static Future<bool> registerCallListener() async {
+    return await _bgMethodChannel.invokeMethod<bool>('service.registerCallListener') ??
+        false;
+}
   /// get the full notification from android
   /// with the unqiue id
   static Future<dynamic> getFullNotification(String uid) async {
