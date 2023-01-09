@@ -56,6 +56,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private val eventsCache = HashMap<String, NotificationEvent>()
     private lateinit var phoneCallStateListener: PhoneStateListener
     private lateinit var telephonyManager: TelephonyManager
+    private var phoneListenStarted = false
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "service.initialized" -> {
@@ -114,6 +115,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "notification listener service onStartCommand")
+        registerPhoneListener()
         // if get shutdown release the wake lock
         when (intent?.action) {
             ACTION_SHUTDOWN -> {
@@ -142,7 +144,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         // store the service instance
         instance = this
         Log.d(TAG, "notification listener service onCreate")
-        registerPhoneListener()
         startListenerService(this)
     }
 
@@ -576,6 +577,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
     private fun registerPhoneListener() {
         Log.d(TAG, "updatePhoneListener")
+        if (phoneListenStarted) {
+            return
+        }
+        phoneListenStarted = true
         phoneCallStateListener = PhoneCallStateListener(mContext)
         telephonyManager =
             mContext.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
@@ -583,6 +588,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     private fun unregisterPhoneListener() {
+        phoneListenStarted = false
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_NONE)
     }
 
@@ -599,26 +605,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             sServiceStarted.set(true)
         }
         Log.d(TAG, "service start finished")
-    }
-
-    private fun sendCallAndSms(map: Map<String, Any?>) {
-        Log.d(TAG, "send status ${map} ")
-        if (callbackHandle == 0L) {
-            callbackHandle = mContext.getSharedPreferences(
-                FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
-                Context.MODE_PRIVATE
-            )
-                .getLong(FlutterNotificationListenerPlugin.CALLBACK_HANDLE_KEY, 0)
-        }
-
-        // why mBackgroundChannel can be null?
-
-        try {
-            // don't care about the method name
-            mBackgroundChannel.invokeMethod("sink_event", listOf(callbackHandle, map))
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
     }
 
     private fun sendEvent(data: Map<String, Any?>) {
