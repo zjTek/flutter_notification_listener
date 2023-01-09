@@ -54,15 +54,12 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
     // notification event cache: packageName_id -> event
     private val eventsCache = HashMap<String, NotificationEvent>()
-
+    private lateinit var phoneCallStateListener: PhoneStateListener
+    private lateinit var telephonyManager: TelephonyManager
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "service.initialized" -> {
                 initFinish()
-                return result.success(true)
-            }
-            "service.registerCallListener" -> {
-                updatePhoneListener()
                 return result.success(true)
             }
             // this should move to plugin
@@ -116,7 +113,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
+        Log.d(TAG, "notification listener service onStartCommand")
         // if get shutdown release the wake lock
         when (intent?.action) {
             ACTION_SHUTDOWN -> {
@@ -144,13 +141,15 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         // store the service instance
         instance = this
-        Log.i(TAG, "notification listener service onCreate")
+        Log.d(TAG, "notification listener service onCreate")
+        registerPhoneListener()
         startListenerService(this)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.i(TAG, "notification listener service onDestroy")
+        Log.d(TAG, "notification listener service onDestroy")
+        unregisterPhoneListener()
         val bdi = Intent(mContext, RebootBroadcastReceiver::class.java)
         // remove notification
         sendBroadcast(bdi)
@@ -160,15 +159,17 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         super.onTaskRemoved(rootIntent)
         Log.i(TAG, "notification listener service onTaskRemoved")
     }
-    private  fun onPhoneStatePosted(map: Map<String, Any?>){
-        Log.d(TAG,"onPhoneStatePosted")
+
+    private fun onPhoneStatePosted(context: Context, map: Map<String, Any?>) {
+        Log.d(TAG, "onPhoneStatePosted")
         synchronized(sServiceStarted) {
             if (sServiceStarted.get()) {
                 Log.d(TAG, "send event to flutter side immediately!")
-                Handler(mContext.mainLooper).post { sendEvent(map) }
+                Handler(context.mainLooper).post { sendEvent(map) }
             }
         }
     }
+
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         super.onNotificationPosted(sbn)
 
@@ -512,15 +513,15 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         }
 
         fun updateFlutterEngine(context: Context) {
-            Log.d(TAG, "call instance update flutter engine from plugin init")
+            Log.d(TAG, "call instance update flutter engine from plugin init ${instance}")
             instance?.updateFlutterEngine(context)
             // we need to `finish init` manually
             instance?.initFinish()
         }
 
-        fun sendNotification(map: Map<String, Any?>) {
+        fun sendNotification(context: Context, map: Map<String, Any?>) {
             Log.d(TAG, "send call to flutter side immediately!")
-            instance?.onPhoneStatePosted(map)
+            instance?.onPhoneStatePosted(context, map)
         }
     }
 
@@ -573,11 +574,16 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         mBackgroundChannel.setMethodCallHandler(this)
     }
 
-    private fun updatePhoneListener() {
+    private fun registerPhoneListener() {
         Log.d(TAG, "updatePhoneListener")
-        val telephonyManager: TelephonyManager =
+        phoneCallStateListener = PhoneCallStateListener(mContext)
+        telephonyManager =
             mContext.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-        telephonyManager.listen(PhoneCallStateListener(), PhoneStateListener.LISTEN_CALL_STATE)
+        telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+    }
+
+    private fun unregisterPhoneListener() {
+        telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_NONE)
     }
 
     private fun startListenerService(context: Context) {
@@ -615,8 +621,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         }
     }
 
-    private fun sendEvent(data:Map<String, Any?>)
-    {
+    private fun sendEvent(data: Map<String, Any?>) {
         Log.d(TAG, "send notification event: ${data}")
         if (callbackHandle == 0L) {
             callbackHandle = mContext.getSharedPreferences(

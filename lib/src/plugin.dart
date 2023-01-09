@@ -134,10 +134,6 @@ class NotificationsListener {
   static Future<void> demoteToBackground() async =>
       await _bgMethodChannel.invokeMethod('service.demoteToBackground');
 
-  /// register call listener
-  static Future<void> registerCallStateListener() async =>
-      await _bgMethodChannel.invokeMethod('service.registerCallListener');
-
   /// tap the notification
   static Future<bool> tapNotification(String uid) async {
     return await _bgMethodChannel.invokeMethod<bool>('service.tap', [uid]) ??
