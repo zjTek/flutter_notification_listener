@@ -139,7 +139,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         super.onCreate()
 
         mContext = this
-        updateServiceRunningState(true)
         // store the service instance
         instance = this
         Log.d(TAG, "notification listener service onCreate")
@@ -150,7 +149,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "notification listener service onDestroy")
-        updateServiceRunningState(false)
         unregisterPhoneListener()
         val bdi = Intent(mContext, RebootBroadcastReceiver::class.java)
         //remove notification
@@ -208,16 +206,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
     private fun isTargetNotification(packName: String): Boolean {
         return notifyList.any { packName.contains(it) }
-    }
-
-    private fun updateServiceRunningState(state: Boolean) {
-        mContext.getSharedPreferences(
-            FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
-            Context.MODE_PRIVATE
-        )
-            .edit()
-            .putBoolean(FlutterNotificationListenerPlugin.SERVICE_STATE_KEY, state)
-            .apply()
     }
 
     private fun initFinish() {
@@ -409,7 +397,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         private const val BG_METHOD_CHANNEL_NAME = "flutter_notification_listener/bg_method"
 
         private const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
-        const val NOTIFICATION_INTENT_KEY = "object"
 
         fun permissionGiven(context: Context): Boolean {
             val packageName = context.packageName

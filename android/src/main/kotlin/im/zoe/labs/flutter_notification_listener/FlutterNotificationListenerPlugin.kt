@@ -37,12 +37,6 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     eventSink = null
   }
 
-  internal inner class NotificationReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-      eventSink?.success(intent.getStringExtra(NotificationsHandlerService.NOTIFICATION_INTENT_KEY)?:"{}")
-    }
-  }
-
   companion object {
     const val TAG = "ListenerPlugin"
     lateinit var binaryMessenger: BinaryMessenger
@@ -51,12 +45,10 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
     const val SHARED_PREFERENCES_KEY = "flutter_notification_cache"
 
-    const val CALLBACK_DISPATCHER_HANDLE_KEY = "callback_dispatch_handler"
+    private const val CALLBACK_DISPATCHER_HANDLE_KEY = "callback_dispatch_handler"
     const val PROMOTE_SERVICE_ARGS_KEY = "promote_service_args"
     const val CALLBACK_HANDLE_KEY = "callback_handler"
-    const val SERVICE_STATE_KEY = "service_running_state"
 
-    const val FLUTTER_ENGINE_CACHE_KEY = "flutter_engine_main"
 
     private val sNotificationCacheLock = Object()
 
@@ -116,7 +108,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     }
 
     fun stopService(context: Context): Boolean {
-      if (!isServiceRunning(context)) return true
+      if (!isServiceRunning()) return true
 
       val intent = Intent(context, NotificationsHandlerService::class.java)
       intent.action = NotificationsHandlerService.ACTION_SHUTDOWN
@@ -124,9 +116,8 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       return true
     }
 
-    fun isServiceRunning(context: Context): Boolean {
-      return context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE).getBoolean(
-        SERVICE_STATE_KEY,false)
+    fun isServiceRunning(): Boolean {
+      return NotificationsHandlerService.instance != null
     }
 
     fun registerEventHandle(context: Context, cbId: Long): Boolean {
@@ -175,7 +166,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         return result.success(NotificationsHandlerService.openAppLaunchSettings(mContext))
       }
       "plugin.isServiceRunning" -> {
-        return result.success(isServiceRunning(mContext))
+        return result.success(isServiceRunning())
       }
       "plugin.registerEventHandle" -> {
         val cbId = call.arguments<Long?>()!!
