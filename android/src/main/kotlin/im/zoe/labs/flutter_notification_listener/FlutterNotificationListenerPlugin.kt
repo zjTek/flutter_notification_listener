@@ -4,6 +4,7 @@ import android.content.*
 import android.os.Build
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -16,7 +17,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
   override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     Log.i(TAG, "on attached to engine")
     mContext = flutterPluginBinding.applicationContext
-    val binaryMessenger = flutterPluginBinding.binaryMessenger
+    binaryMessenger = flutterPluginBinding.binaryMessenger
     // event stream channel
     EventChannel(binaryMessenger, EVENT_CHANNEL_NAME).setStreamHandler(this)
     // method channel
@@ -44,7 +45,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
   companion object {
     const val TAG = "ListenerPlugin"
-
+    lateinit var binaryMessenger: BinaryMessenger
     private const val EVENT_CHANNEL_NAME = "flutter_notification_listener/events"
     private const val METHOD_CHANNEL_NAME = "flutter_notification_listener/method"
 
@@ -75,7 +76,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
       // TODO: update the flutter engine
       // call the service to update the flutter engine
-      NotificationsHandlerService.updateFlutterEngine(context)
+      NotificationsHandlerService.updateFlutterEngine()
     }
 
     private fun internalStartService(context: Context, cfg: Utils.PromoteServiceConfig?): Boolean {

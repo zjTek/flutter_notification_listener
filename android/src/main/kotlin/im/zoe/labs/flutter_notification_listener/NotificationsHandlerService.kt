@@ -17,12 +17,8 @@ import android.text.TextUtils
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import io.flutter.FlutterInjector
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.embedding.engine.FlutterEngineCache
-import io.flutter.embedding.engine.dart.DartExecutor
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.view.FlutterCallbackInformation
 import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.collections.HashMap
@@ -148,7 +144,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         instance = this
         Log.d(TAG, "notification listener service onCreate")
         registerPhoneListener()
-        startListenerService(this)
+        startListenerService()
     }
 
     override fun onDestroy() {
@@ -406,8 +402,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         private const val CHANNEL_ID = "flutter_notifications_listener_channel"
 
-        @JvmStatic
-        private var sBackgroundFlutterEngine: FlutterEngine? = null
 
         @JvmStatic
         private val sServiceStarted = AtomicBoolean(false)
@@ -537,9 +531,9 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             pm.setComponentEnabledSetting(receiver, state, PackageManager.DONT_KILL_APP)
         }
 
-        fun updateFlutterEngine(context: Context) {
+        fun updateFlutterEngine() {
             Log.d(TAG, "call instance update flutter engine from plugin init $instance")
-            instance?.updateFlutterEngine(context)
+            instance?.updateFlutterEngine()
             // we need to `finish init` manually
             instance?.initFinish()
         }
@@ -550,52 +544,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         }
     }
 
-    private fun getFlutterEngine(context: Context): FlutterEngine {
-        var eng = FlutterEngineCache.getInstance()
-            .get(FlutterNotificationListenerPlugin.FLUTTER_ENGINE_CACHE_KEY)
-        if (eng != null) return eng
-
-        Log.i(TAG, "flutter engine cache is null, create a new one")
-        eng = FlutterEngine(context)
-
-        // ensure initialization
-        FlutterInjector.instance().flutterLoader().startInitialization(context)
-        FlutterInjector.instance().flutterLoader().ensureInitializationComplete(context, arrayOf())
-
-        // call the flutter side init
-        // get the call back handle information
-        val cb = context.getSharedPreferences(
-            FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
-            Context.MODE_PRIVATE
-        )
-            .getLong(FlutterNotificationListenerPlugin.CALLBACK_DISPATCHER_HANDLE_KEY, 0)
-
-        if (cb != 0L) {
-            Log.d(TAG, "try to find callback: $cb")
-            val info = FlutterCallbackInformation.lookupCallbackInformation(cb)
-            val args = DartExecutor.DartCallback(
-                context.assets,
-                FlutterInjector.instance().flutterLoader().findAppBundlePath(), info
-            )
-            // call the callback
-            eng.dartExecutor.executeDartCallback(args)
-        } else {
-            Log.e(TAG, "Fatal: no callback register")
-        }
-
-        FlutterEngineCache.getInstance()
-            .put(FlutterNotificationListenerPlugin.FLUTTER_ENGINE_CACHE_KEY, eng)
-        return eng
-    }
-
-    private fun updateFlutterEngine(context: Context) {
+    private fun updateFlutterEngine() {
         Log.d(TAG, "update the flutter engine of service")
-        // take the engine
-        val eng = getFlutterEngine(context)
-        sBackgroundFlutterEngine = eng
-
         // set the method call
-        mBackgroundChannel = MethodChannel(eng.dartExecutor.binaryMessenger, BG_METHOD_CHANNEL_NAME)
+        mBackgroundChannel = MethodChannel(FlutterNotificationListenerPlugin.binaryMessenger, BG_METHOD_CHANNEL_NAME)
         mBackgroundChannel.setMethodCallHandler(this)
     }
 
@@ -627,7 +579,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_NONE)
     }
 
-    private fun startListenerService(context: Context) {
+    private fun startListenerService() {
         Log.d(TAG, "start listener service")
         synchronized(sServiceStarted) {
             // promote to foreground
@@ -635,8 +587,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             promoteToForeground(Utils.PromoteServiceConfig.load(this))
             // we should to ee
             Log.d(TAG, "service's flutter engine is null, should update one")
-            updateFlutterEngine(context)
-
+            updateFlutterEngine()
             sServiceStarted.set(true)
         }
         Log.d(TAG, "service start finished")
