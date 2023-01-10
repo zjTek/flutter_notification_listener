@@ -2,6 +2,7 @@ package im.zoe.labs.flutter_notification_listener
 
 import android.annotation.SuppressLint
 import android.app.*
+import android.app.PendingIntent.FLAG_NO_CREATE
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -26,6 +27,7 @@ import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
+import androidx.core.view.ContentInfoCompat.Flags
 
 class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
@@ -255,6 +257,8 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(
             channel
         )
+
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(cfgHere.title)
             .setContentText(cfgHere.description)
@@ -263,7 +267,24 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             .setSmallIcon(imageId)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setAutoCancel(false)
             .build()
+        if (FlutterNotificationListenerPlugin.activityBind != null) {
+            Log.d(TAG, "MainAc is : ${FlutterNotificationListenerPlugin.activityBind!!.hashCode()}")
+            val resultIntent = Intent(
+                mContext.applicationContext,
+                FlutterNotificationListenerPlugin.activityBind!!::class.java
+            ).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            val resultPendingIntent: PendingIntent? = PendingIntent.getActivity(
+                mContext.applicationContext,
+                0,
+                resultIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            notification.contentIntent = resultPendingIntent
+        }
 
         Log.d(TAG, "promote the service to foreground")
         startForeground(ONGOING_NOTIFICATION_ID, notification)
@@ -534,7 +555,8 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private fun updateFlutterEngine() {
         Log.d(TAG, "update the flutter engine of service")
         // set the method call
-        mBackgroundChannel = MethodChannel(FlutterNotificationListenerPlugin.binaryMessenger, BG_METHOD_CHANNEL_NAME)
+        mBackgroundChannel =
+            MethodChannel(FlutterNotificationListenerPlugin.binaryMessenger, BG_METHOD_CHANNEL_NAME)
         mBackgroundChannel.setMethodCallHandler(this)
     }
 

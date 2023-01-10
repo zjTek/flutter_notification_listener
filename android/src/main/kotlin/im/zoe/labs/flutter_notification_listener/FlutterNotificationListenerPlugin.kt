@@ -1,15 +1,18 @@
 package im.zoe.labs.flutter_notification_listener
 
+import android.app.Activity
 import android.content.*
 import android.os.Build
 import android.util.Log
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.embedding.engine.plugins.activity.ActivityAware
+import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 
-class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler {
+class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler,ActivityAware {
   private var eventSink: EventChannel.EventSink? = null
 
   private lateinit var mContext: Context
@@ -40,6 +43,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
   companion object {
     const val TAG = "ListenerPlugin"
     lateinit var binaryMessenger: BinaryMessenger
+    var activityBind: Activity? = null
     private const val EVENT_CHANNEL_NAME = "flutter_notification_listener/events"
     private const val METHOD_CHANNEL_NAME = "flutter_notification_listener/method"
 
@@ -179,5 +183,21 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       }
       else -> result.notImplemented()
     }
+  }
+
+  override fun onAttachedToActivity(binding: ActivityPluginBinding) {
+    activityBind = binding.activity
+    Log.d(TAG,"activity is $activityBind")
+  }
+
+  override fun onDetachedFromActivityForConfigChanges() {
+  }
+
+  override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
+    activityBind = binding.activity
+  }
+
+  override fun onDetachedFromActivity() {
+    activityBind = null
   }
 }
