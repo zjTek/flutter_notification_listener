@@ -4,7 +4,7 @@ import android.content.Context
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 
-class PhoneCallStateListener(val mContext: Context): PhoneStateListener() {
+class PhoneCallStateListener(private val mContext: Context): PhoneStateListener() {
     override fun onCallStateChanged(state: Int, phoneNumber: String?) {
         super.onCallStateChanged(state, phoneNumber)
         var callStatus = ""

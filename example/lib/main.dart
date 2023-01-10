@@ -67,7 +67,7 @@ class _NotificationsLogState extends State<NotificationsLog> {
 
     // don't use the default receivePort
     // NotificationsListener.receivePort.listen((evt) => onData(evt));
-
+    await Future.delayed(Duration(seconds: 2));
     var isRunning = (await NotificationsListener.isRunning) ?? false;
     print("""Service is ${!isRunning ? "not " : ""}already running""");
 

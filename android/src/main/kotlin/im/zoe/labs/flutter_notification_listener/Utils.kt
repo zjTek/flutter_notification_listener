@@ -5,7 +5,6 @@ import android.app.PendingIntent
 import android.app.Person
 import android.app.RemoteInput
 import android.content.Context
-import android.content.IntentSender
 import android.content.pm.ApplicationInfo
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -14,14 +13,11 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
-import android.os.UserHandle
 import android.service.notification.StatusBarNotification
 import android.util.Log
-import io.flutter.plugin.common.JSONMessageCodec
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.math.BigInteger
-import java.nio.ByteBuffer
 import java.security.MessageDigest
 
 class Utils {
@@ -54,7 +50,7 @@ class Utils {
 
     class Marshaller {
 
-        val convertorFactory = HashMap<Class<*>, Convertor>()
+        private val convertorFactory = HashMap<Class<*>, Convertor>()
 
         init {
             // improve performance
@@ -65,7 +61,7 @@ class Utils {
             register<Boolean> { passConvertor(it) }
 
             // basic types
-            register<CharSequence> { it?.toString() }
+            register<CharSequence> { it.toString() }
 
             // collections type
             register<List<*>> { arrayConvertor(it as List<*>) }
@@ -140,7 +136,6 @@ class Utils {
                     map["timeoutAfter"] = v.timeoutAfter
                 }
                 map["number"] = v.number
-                map["sound"] = v.sound?.toString()
                 map
             }
             register<PendingIntent> {
@@ -207,7 +202,7 @@ class Utils {
                 }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                register<Icon> { ignoreConvertor(it) }
+                register<Icon> { ignoreConvertor() }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 register<Notification.MessagingStyle> {
@@ -245,7 +240,7 @@ class Utils {
             return items
         }
 
-        private fun ignoreConvertor(obj: Any?): Any? {
+        private fun ignoreConvertor(): Any? {
             return null
         }
 
@@ -253,7 +248,7 @@ class Utils {
             return obj
         }
 
-        inline fun <reified T> register(noinline fn: Convertor) {
+        private inline fun <reified T> register(noinline fn: Convertor) {
             convertorFactory[T::class.java] = fn
         }
 
@@ -270,14 +265,10 @@ class Utils {
         }
 
         companion object {
-            val instance = Marshaller()
+            private val instance = Marshaller()
 
             fun marshal(obj: Any?): Any? {
                 return instance.marshal(obj)
-            }
-
-            inline fun <reified T> register(noinline fn: Convertor) {
-                return instance.register<T>(fn)
             }
         }
     }
@@ -313,7 +304,7 @@ class Utils {
         }
 
         companion object {
-            val TAG = "PromoteConfig"
+            const val TAG = "PromoteConfig"
 
             fun fromMap(map: Map<*, *>?): PromoteServiceConfig {
                 val cfg = PromoteServiceConfig()
@@ -327,7 +318,7 @@ class Utils {
                 return cfg
             }
 
-            fun fromString(str: String = "{}"): PromoteServiceConfig {
+            private fun fromString(str: String = "{}"): PromoteServiceConfig {
                 val cfg = PromoteServiceConfig()
                 val map = JSONObject(str)
                 map.let { m ->
@@ -345,7 +336,7 @@ class Utils {
             }
 
             fun load(context: Context): PromoteServiceConfig {
-                var str = context.getSharedPreferences(FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
+                val str = context.getSharedPreferences(FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE)
                     .getString(FlutterNotificationListenerPlugin.PROMOTE_SERVICE_ARGS_KEY, null)
                 Log.d(TAG, "load the promote config: ${str.toString()}")
                 if (str == null ) return PromoteServiceConfig()

@@ -31,7 +31,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
         private const val NOTIFICATION_KEY = "key"
         private const val NOTIFICATION_UNIQUE_ID = "_id"
 
-        fun genKey(vararg items: Any?): String {
+        private fun genKey(vararg items: Any?): String {
             return Utils.md5(items.joinToString(separator="-"){ "$it" }).slice(IntRange(0, 12))
         }
 
@@ -70,7 +70,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
 
             map[NOTIFICATION_CAN_TAP] = notify.contentIntent != null
 
-            map[NOTIFICATION_ACTIONS] = getActions(context, notify)
+            map[NOTIFICATION_ACTIONS] = getActions(notify)
 
             return map
         }
@@ -131,7 +131,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
         @RequiresApi(Build.VERSION_CODES.M)
         private fun convertIconToByteArray(context: Context, icon: Icon): ByteArray {
             return try {
-                convertBitmapToByteArray(icon.loadDrawable(context).toBitmap())
+                convertBitmapToByteArray(icon.loadDrawable(context)!!.toBitmap())
             } catch (e:java.lang.NullPointerException) {
                 byteArrayOf(0)
             }
@@ -144,7 +144,7 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
             return stream.toByteArray()
         }
 
-        private fun getActions(context: Context, n: Notification?): List<*>? {
+        private fun getActions(n: Notification?): List<*>? {
             if (n?.actions == null) return null
             var items: List<Map<String, Any>?> = mutableListOf()
             n.actions.forEachIndexed { idx, act ->

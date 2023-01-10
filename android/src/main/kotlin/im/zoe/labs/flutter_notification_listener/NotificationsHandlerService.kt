@@ -29,6 +29,7 @@ import kotlin.collections.HashMap
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresApi
+import androidx.core.content.ContextCompat
 
 class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
@@ -64,8 +65,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 return result.success(true)
             }
             "service.registerCallListener" -> {
-                registerPhoneListener()
-                return result.success(true)
+                return result.success(registerPhoneListener())
             }
             // this should move to plugin
             "service.promoteToForeground" -> {
@@ -143,7 +143,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         super.onCreate()
 
         mContext = this
-
+        updateServiceRunningState(true)
         // store the service instance
         instance = this
         Log.d(TAG, "notification listener service onCreate")
@@ -154,9 +154,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "notification listener service onDestroy")
+        updateServiceRunningState(false)
         unregisterPhoneListener()
         val bdi = Intent(mContext, RebootBroadcastReceiver::class.java)
-        // remove notification
+        //remove notification
         sendBroadcast(bdi)
     }
 
@@ -211,6 +212,16 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
     private fun isTargetNotification(packName: String): Boolean {
         return notifyList.any { packName.contains(it) }
+    }
+
+    private fun updateServiceRunningState(state: Boolean) {
+        mContext.getSharedPreferences(
+            FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,
+            Context.MODE_PRIVATE
+        )
+            .edit()
+            .putBoolean(FlutterNotificationListenerPlugin.SERVICE_STATE_KEY, state)
+            .apply()
     }
 
     private fun initFinish() {
@@ -461,39 +472,48 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             val intent = Intent()
             try {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                Log.e("HLQ_Struggle", "******************当前手机型号为：" + mobileType)
+                Log.e("HLQ_Struggle", "******************当前手机型号为：$mobileType")
                 var componentName: ComponentName? = null
-                if (mobileType == "Xiaomi") { // 红米Note4测试通过
-                    componentName = ComponentName(
-                        "com.miui.securitycenter",
-                        "com.miui.permcenter.autostart.AutoStartManagementActivity"
-                    )
-                } else if (mobileType == "Letv") { // 乐视2测试通过
-                    intent.action = "com.letv.android.permissionautoboot"
-                } else if (mobileType == "samsung") { // 三星Note5测试通过
-                    componentName = ComponentName(
-                        "com.samsung.android.sm_cn",
-                        "com.samsung.android.sm.ui.ram.AutoRunActivity"
-                    )
-                } else if (mobileType == "HUAWEI") { // 华为测试通过
-                    componentName =
-                        ComponentName.unflattenFromString("com.huawei.systemmanager/.startupmgr.ui.StartupNormalAppListActivity") //跳自启动管理
-                    //SettingOverlayView.show(context);
-                } else if (mobileType == "vivo") { // VIVO测试通过
-                    componentName =
-                        ComponentName.unflattenFromString("com.iqoo.secure/.safeguard.PurviewTabActivity")
-                } else if (mobileType == "Meizu") {
-                    // 针对魅族，我们只能通过魅族内置手机管家去设置自启动，所以我在这里直接跳转到魅族内置手机管家界面，具体结果请看图
-                    componentName =
-                        ComponentName.unflattenFromString("com.meizu.safe/.permission.PermissionMainActivity")
-                } else if (mobileType == "OPPO") { // OPPO R8205测试通过
-                    componentName =
-                        ComponentName.unflattenFromString("com.oppo.safe/.permission.startup.StartupAppListActivity")
-                } else if (mobileType == "ulong") { // 360手机 未测试
-                    componentName = ComponentName(
-                        "com.yulong.android.coolsafe",
-                        ".ui.activity.autorun.AutoRunListActivity"
-                    )
+                when (mobileType) {
+                    "Xiaomi" -> { // 红米Note4测试通过
+                        componentName = ComponentName(
+                            "com.miui.securitycenter",
+                            "com.miui.permcenter.autostart.AutoStartManagementActivity"
+                        )
+                    }
+                    "Letv" -> { // 乐视2测试通过
+                        intent.action = "com.letv.android.permissionautoboot"
+                    }
+                    "samsung" -> { // 三星Note5测试通过
+                        componentName = ComponentName(
+                            "com.samsung.android.sm_cn",
+                            "com.samsung.android.sm.ui.ram.AutoRunActivity"
+                        )
+                    }
+                    "HUAWEI" -> { // 华为测试通过
+                        componentName =
+                            ComponentName.unflattenFromString("com.huawei.systemmanager/.startupmgr.ui.StartupNormalAppListActivity") //跳自启动管理
+                        //SettingOverlayView.show(context);
+                    }
+                    "vivo" -> { // VIVO测试通过
+                        componentName =
+                            ComponentName.unflattenFromString("com.iqoo.secure/.safeguard.PurviewTabActivity")
+                    }
+                    "Meizu" -> {
+                        // 针对魅族，我们只能通过魅族内置手机管家去设置自启动，所以我在这里直接跳转到魅族内置手机管家界面，具体结果请看图
+                        componentName =
+                            ComponentName.unflattenFromString("com.meizu.safe/.permission.PermissionMainActivity")
+                    }
+                    "OPPO" -> { // OPPO R8205测试通过
+                        componentName =
+                            ComponentName.unflattenFromString("com.oppo.safe/.permission.startup.StartupAppListActivity")
+                    }
+                    "ulong" -> { // 360手机 未测试
+                        componentName = ComponentName(
+                            "com.yulong.android.coolsafe",
+                            ".ui.activity.autorun.AutoRunListActivity"
+                        )
+                    }
                 }
                 intent.component = componentName
                 context.startActivity(intent)
@@ -518,7 +538,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         }
 
         fun updateFlutterEngine(context: Context) {
-            Log.d(TAG, "call instance update flutter engine from plugin init ${instance}")
+            Log.d(TAG, "call instance update flutter engine from plugin init $instance")
             instance?.updateFlutterEngine(context)
             // we need to `finish init` manually
             instance?.initFinish()
@@ -579,16 +599,27 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         mBackgroundChannel.setMethodCallHandler(this)
     }
 
-    private fun registerPhoneListener() {
+    private fun registerPhoneListener(): Boolean {
         Log.d(TAG, "updatePhoneListener")
         if (phoneListenStarted) {
-            return
+            return false
         }
         phoneListenStarted = true
         phoneCallStateListener = PhoneCallStateListener(mContext)
         telephonyManager =
             mContext.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+
+        if (Build.VERSION.SDK_INT >= 31) {
+            if (ContextCompat.checkSelfPermission(
+                    mContext,
+                    android.Manifest.permission.READ_PHONE_STATE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return false
+            }
+        }
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_CALL_STATE)
+        return true
     }
 
     private fun unregisterPhoneListener() {
@@ -612,7 +643,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     private fun sendEvent(data: Map<String, Any?>) {
-        Log.d(TAG, "send notification event: ${data}")
+        Log.d(TAG, "send notification event: $data")
         if (callbackHandle == 0L) {
             callbackHandle = mContext.getSharedPreferences(
                 FlutterNotificationListenerPlugin.SHARED_PREFERENCES_KEY,

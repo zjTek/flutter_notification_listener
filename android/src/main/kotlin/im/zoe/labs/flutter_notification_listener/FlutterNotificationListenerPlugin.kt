@@ -1,12 +1,8 @@
 package im.zoe.labs.flutter_notification_listener
 
-import android.app.ActivityManager
 import android.content.*
 import android.os.Build
 import android.util.Log
-import androidx.annotation.NonNull
-import androidx.annotation.RequiresApi
-import io.flutter.embedding.engine.FlutterEngineCache
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
@@ -17,29 +13,21 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
   private lateinit var mContext: Context
 
-  override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
+  override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     Log.i(TAG, "on attached to engine")
-
     mContext = flutterPluginBinding.applicationContext
-
     val binaryMessenger = flutterPluginBinding.binaryMessenger
-
     // event stream channel
     EventChannel(binaryMessenger, EVENT_CHANNEL_NAME).setStreamHandler(this)
     // method channel
     MethodChannel(binaryMessenger, METHOD_CHANNEL_NAME).setMethodCallHandler(this)
-
-    // store the flutter engine
-    val engine = flutterPluginBinding.flutterEngine
-    FlutterEngineCache.getInstance().put(FLUTTER_ENGINE_CACHE_KEY, engine)
   }
 
-  override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
+  override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
     // methodChannel.setMethodCallHandler(null)
     stopService(mContext)
   }
 
-  @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN_MR2)
   override fun onListen(o: Any?, eventSink: EventChannel.EventSink?) {
     this.eventSink = eventSink
   }
@@ -65,6 +53,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     const val CALLBACK_DISPATCHER_HANDLE_KEY = "callback_dispatch_handler"
     const val PROMOTE_SERVICE_ARGS_KEY = "promote_service_args"
     const val CALLBACK_HANDLE_KEY = "callback_handler"
+    const val SERVICE_STATE_KEY = "service_running_state"
 
     const val FLUTTER_ENGINE_CACHE_KEY = "flutter_engine_main"
 
@@ -97,8 +86,6 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
       Log.d(TAG, "start service with args: $cfg")
 
-      val cfg = cfg ?: Utils.PromoteServiceConfig.load(context)
-
       // and try to toggle the service to trigger rebind
       with(NotificationsHandlerService) {
 
@@ -128,7 +115,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     }
 
     fun stopService(context: Context): Boolean {
-      if (!isServiceRunning(context, NotificationsHandlerService::class.java)) return true
+      if (!isServiceRunning(context)) return true
 
       val intent = Intent(context, NotificationsHandlerService::class.java)
       intent.action = NotificationsHandlerService.ACTION_SHUTDOWN
@@ -136,19 +123,9 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
       return true
     }
 
-    fun isServiceRunning(context: Context, serviceClass: Class<*>): Boolean {
-      return null != getRunningService(context, serviceClass)
-    }
-
-    private fun getRunningService(context: Context, serviceClass: Class<*>): ActivityManager.RunningServiceInfo? {
-      val manager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager?
-      for (service in manager!!.getRunningServices(Int.MAX_VALUE)) {
-        if (serviceClass.name == service.service.className) {
-          return service
-        }
-      }
-
-      return null
+    fun isServiceRunning(context: Context): Boolean {
+      return context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE).getBoolean(
+        SERVICE_STATE_KEY,false)
     }
 
     fun registerEventHandle(context: Context, cbId: Long): Boolean {
@@ -178,7 +155,11 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         return result.success(NotificationsHandlerService.permissionGiven(mContext))
       }
       "plugin.openPermissionSettings" -> {
-        return result.success(NotificationsHandlerService.openPermissionSettings(mContext))
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+          result.success(NotificationsHandlerService.openPermissionSettings(mContext))
+        } else {
+          result.success(false)
+        }
       }
       "plugin.openAppSettings" -> {
         return result.success(NotificationsHandlerService.openAppSettings(mContext))
@@ -193,7 +174,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         return result.success(NotificationsHandlerService.openAppLaunchSettings(mContext))
       }
       "plugin.isServiceRunning" -> {
-        return result.success(isServiceRunning(mContext, NotificationsHandlerService::class.java))
+        return result.success(isServiceRunning(mContext))
       }
       "plugin.registerEventHandle" -> {
         val cbId = call.arguments<Long?>()!!

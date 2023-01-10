@@ -1,5 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="im.zoe.labs.flutter_notification_listener_example">
+<manifest xmlns:tools="http://schemas.android.com/tools"
+    xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
@@ -14,7 +14,8 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:exported="true">
             <!-- Specifies an Android theme to apply to this Activity as soon as
                  the Android process has started. This theme is visible to the user
                  while the Flutter UI initializes. After that, this theme continues
@@ -44,7 +45,8 @@
             android:value="2" />
        <receiver android:name="im.zoe.labs.flutter_notification_listener.RebootBroadcastReceiver"
            android:enabled="true" android:exported="true" android:label="RestartServiceWhenStopped">
-           <intent-filter android:directBootAware="true">
+           <intent-filter android:directBootAware="true"
+               tools:targetApi="n">
                <action android:name="android.intent.action.BOOT_COMPLETED" />
                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
@@ -53,7 +55,8 @@
        </receiver>
         <service android:name="im.zoe.labs.flutter_notification_listener.NotificationsHandlerService"
             android:label="Flutter Notifications Handler"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="true">
             <intent-filter>
                <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
