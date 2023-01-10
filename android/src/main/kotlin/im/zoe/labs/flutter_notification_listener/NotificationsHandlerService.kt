@@ -2,7 +2,6 @@ package im.zoe.labs.flutter_notification_listener
 
 import android.annotation.SuppressLint
 import android.app.*
-import android.app.PendingIntent.FLAG_NO_CREATE
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -26,8 +25,8 @@ import kotlin.collections.HashMap
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.ContentInfoCompat.Flags
 
 class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
@@ -56,6 +55,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private lateinit var phoneCallStateListener: PhoneStateListener
     private lateinit var telephonyManager: TelephonyManager
     private var phoneListenStarted = false
+
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "service.initialized" -> {
@@ -403,6 +403,8 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         private const val ONGOING_NOTIFICATION_ID = 100
 
+        const val PHONE_STATE_PERMISSION_CODE = 1008611
+
         @JvmStatic
         private val WAKELOCK_TAG = "IsolateHolderService::WAKE_LOCK"
 
@@ -555,30 +557,36 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private fun updateFlutterEngine() {
         Log.d(TAG, "update the flutter engine of service")
         // set the method call
-        mBackgroundChannel =
-            MethodChannel(FlutterNotificationListenerPlugin.binaryMessenger, BG_METHOD_CHANNEL_NAME)
-        mBackgroundChannel.setMethodCallHandler(this)
+        if (FlutterNotificationListenerPlugin.binaryMessenger != null) {
+            mBackgroundChannel =
+                MethodChannel(
+                    FlutterNotificationListenerPlugin.binaryMessenger!!,
+                    BG_METHOD_CHANNEL_NAME
+                )
+            mBackgroundChannel.setMethodCallHandler(this)
+        }
+
     }
 
-    private fun registerPhoneListener(): Boolean {
+    fun registerPhoneListener(): Boolean {
         Log.d(TAG, "updatePhoneListener")
         if (phoneListenStarted) {
             return false
         }
-        phoneListenStarted = true
-        phoneCallStateListener = PhoneCallStateListener(mContext)
-        telephonyManager =
-            mContext.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
-
         if (Build.VERSION.SDK_INT >= 31) {
             if (ContextCompat.checkSelfPermission(
                     mContext,
                     android.Manifest.permission.READ_PHONE_STATE
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
+                requestPhoneStatePermission()
                 return false
             }
         }
+        phoneListenStarted = true
+        phoneCallStateListener = PhoneCallStateListener(mContext)
+        telephonyManager =
+            mContext.getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_CALL_STATE)
         return true
     }
@@ -586,6 +594,16 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private fun unregisterPhoneListener() {
         phoneListenStarted = false
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_NONE)
+    }
+
+    private fun requestPhoneStatePermission() {
+        if (FlutterNotificationListenerPlugin.activityBind != null) {
+            ActivityCompat.requestPermissions(
+                FlutterNotificationListenerPlugin.activityBind!!,
+                arrayOf(android.Manifest.permission.READ_PHONE_STATE),
+                PHONE_STATE_PERMISSION_CODE
+            )
+        }
     }
 
     private fun startListenerService() {
