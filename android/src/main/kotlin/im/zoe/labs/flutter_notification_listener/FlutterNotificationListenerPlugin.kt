@@ -5,6 +5,7 @@ import android.content.*
 import android.content.pm.PackageManager
 import android.os.Build
 import android.util.Log
+import androidx.core.app.ActivityCompat.OnRequestPermissionsResultCallback
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -13,13 +14,14 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
+import java.util.ArrayList
 
 class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
     EventChannel.StreamHandler, ActivityAware, PluginRegistry.RequestPermissionsResultListener {
     private var eventSink: EventChannel.EventSink? = null
-
     private lateinit var mContext: Context
-
+    var plugBinding: ActivityPluginBinding? = null
+    var binaryMessenger: BinaryMessenger? = null
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.i(TAG, "on attached to engine")
         mContext = flutterPluginBinding.applicationContext
@@ -47,11 +49,18 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     override fun onCancel(o: Any?) {
         eventSink = null
     }
-
+    private fun registerResultListener(){
+        if (plugBinding != null) {
+            plugBinding?.addRequestPermissionsResultListener(this)
+        }
+    }
+    private fun deRegisterResultListener() {
+        if (plugBinding != null) {
+            plugBinding?.removeRequestPermissionsResultListener(this)
+        }
+    }
     companion object {
         const val TAG = "ListenerPlugin"
-        var binaryMessenger: BinaryMessenger? = null
-        var activityBind: Activity? = null
         private const val EVENT_CHANNEL_NAME = "flutter_notification_listener/events"
         private const val METHOD_CHANNEL_NAME = "flutter_notification_listener/method"
 
@@ -61,13 +70,12 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         const val PROMOTE_SERVICE_ARGS_KEY = "promote_service_args"
         const val CALLBACK_HANDLE_KEY = "callback_handler"
 
-
         private val sNotificationCacheLock = Object()
 
         fun registerAfterReboot(context: Context) {
             synchronized(sNotificationCacheLock) {
                 Log.i(TAG, "try to start service after reboot")
-                internalStartService(context, null)
+                internalStartService(context, null,plugbin)
             }
         }
 
@@ -85,6 +93,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
         private fun internalStartService(
             context: Context, cfg: Utils.PromoteServiceConfig?
+        methodChannel: MethodChannel
         ): Boolean {
             if (!NotificationsHandlerService.permissionGiven(context)) {
                 Log.e(TAG, "can't get permission to start service.")
@@ -115,7 +124,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
             return true
         }
 
-        fun startService(context: Context, cfg: Utils.PromoteServiceConfig): Boolean {
+        fun startService(context: Context, cfg: Utils.PromoteServiceConfig, methodChannel: MethodChannel): Boolean {
             // store the config
             cfg.save(context)
             return internalStartService(context, cfg)
@@ -185,37 +194,75 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
                 registerEventHandle(mContext, cbId)
                 return result.success(true)
             }
-            // TODO: register handle with filter
-            "setFilter" -> {
-                // TODO
+            "plugin.registerCallListener" -> {
+                return result.success(NotificationsHandlerService.registerCallListener(plugBinding?.activity))
+            }
+            // this should move to plugin
+            "plugin.promoteToForeground" -> {
+                // add data
+                val cfg = Utils.PromoteServiceConfig.fromMap(call.arguments as Map<*, *>).apply {
+                    foreground = true
+                }
+                return result.success(NotificationsHandlerService.showForegroundNotification(cfg, plugBinding?.activity))
+            }
+            "plugin.demoteToBackground" -> {
+                return result.success(NotificationsHandlerService.hideForegroundNotification())
+            }
+            "plugin.tap" -> {
+                // tap the notification
+                Log.d(TAG, "tap the notification")
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                return result.success(NotificationsHandlerService.notificationTapped(uid))
+            }
+            "plugin.tap_action" -> {
+                // tap the action
+                Log.d(TAG, "tap action of notification")
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                val idx = args[1]!! as Int
+                return result.success(NotificationsHandlerService.notificationActionTapped(uid, idx))
+            }
+            "plugin.send_input" -> {
+                // send the input data
+                Log.d(TAG, "set the content for input and the send action")
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                val idx = args[1]!! as Int
+                val data = args[2]!! as Map<*, *>
+                return result.success(NotificationsHandlerService.sendNotificationInputted(uid, idx, data))
+            }
+            "plugin.get_full_notification" -> {
+                val args = call.arguments<ArrayList<*>?>()
+                val uid = args!![0]!! as String
+                return result.success(NotificationsHandlerService.fullNotification(uid))
             }
             else -> result.notImplemented()
         }
     }
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
-        activityBind = binding.activity
-        binding.addRequestPermissionsResultListener(this)
-        Log.d(TAG, "activity is $activityBind")
+        plugBinding = binding
+        registerResultListener()
     }
 
     override fun onDetachedFromActivityForConfigChanges() {
     }
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activityBind = binding.activity
+        onAttachedToActivity(binding)
     }
 
     override fun onDetachedFromActivity() {
-        activityBind = null
+        deRegisterResultListener()
     }
 
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ): Boolean {
 
-        if (requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE && grantResults.first() == PackageManager.PERMISSION_GRANTED) {
-            NotificationsHandlerService.instance?.registerPhoneListener()
+        if (grantResults.isNotEmpty() && requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE && grantResults.first() == PackageManager.PERMISSION_GRANTED) {
+            NotificationsHandlerService.registerCallListener(plugBinding?.activity)
         }
         return true
     }

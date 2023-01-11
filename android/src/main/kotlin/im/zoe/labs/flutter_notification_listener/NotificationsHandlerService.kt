@@ -28,9 +28,8 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
-class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
+class NotificationsHandlerService : NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
-    private lateinit var mBackgroundChannel: MethodChannel
     private lateinit var mContext: Context
     private var notifyList = arrayOf(
         "call.status",
@@ -55,65 +54,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private lateinit var phoneCallStateListener: PhoneStateListener
     private lateinit var telephonyManager: TelephonyManager
     private var phoneListenStarted = false
-
-    override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
-        when (call.method) {
-            "service.initialized" -> {
-                initFinish()
-                return result.success(true)
-            }
-            "service.registerCallListener" -> {
-                return result.success(registerPhoneListener())
-            }
-            // this should move to plugin
-            "service.promoteToForeground" -> {
-                // add data
-                val cfg = Utils.PromoteServiceConfig.fromMap(call.arguments as Map<*, *>).apply {
-                    foreground = true
-                }
-                return result.success(promoteToForeground(cfg))
-            }
-            "service.demoteToBackground" -> {
-                return result.success(demoteToBackground())
-            }
-            "service.tap" -> {
-                // tap the notification
-                Log.d(TAG, "tap the notification")
-                val args = call.arguments<ArrayList<*>?>()
-                val uid = args!![0]!! as String
-                return result.success(tapNotification(uid))
-            }
-            "service.tap_action" -> {
-                // tap the action
-                Log.d(TAG, "tap action of notification")
-                val args = call.arguments<ArrayList<*>?>()
-                val uid = args!![0]!! as String
-                val idx = args[1]!! as Int
-                return result.success(tapNotificationAction(uid, idx))
-            }
-            "service.send_input" -> {
-                // send the input data
-                Log.d(TAG, "set the content for input and the send action")
-                val args = call.arguments<ArrayList<*>?>()
-                val uid = args!![0]!! as String
-                val idx = args[1]!! as Int
-                val data = args[2]!! as Map<*, *>
-                return result.success(sendNotificationInput(uid, idx, data))
-            }
-            "service.get_full_notification" -> {
-                val args = call.arguments<ArrayList<*>?>()
-                val uid = args!![0]!! as String
-                if (!eventsCache.contains(uid)) {
-                    return result.error("notFound", "can't found this notification $uid", "")
-                }
-                return result.success(Utils.Marshaller.marshal(eventsCache[uid]?.mSbn))
-            }
-            else -> {
-                Log.d(TAG, "unknown method ${call.method}")
-                result.notImplemented()
-            }
-        }
-    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "notification listener service onStartCommand")
@@ -144,7 +84,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         // store the service instance
         instance = this
         Log.d(TAG, "notification listener service onCreate")
-        registerPhoneListener()
         startListenerService()
     }
 
@@ -218,7 +157,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         }
     }
 
-    private fun promoteToForeground(cfg: Utils.PromoteServiceConfig? = null): Boolean {
+    private fun promoteToForeground(cfg: Utils.PromoteServiceConfig? = null, mActivity: Activity? = null): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             Log.e(TAG, "promoteToForeground need sdk >= 26")
             return false
@@ -269,11 +208,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setAutoCancel(false)
             .build()
-        if (FlutterNotificationListenerPlugin.activityBind != null) {
-            Log.d(TAG, "MainAc is : ${FlutterNotificationListenerPlugin.activityBind!!.hashCode()}")
+        if (mActivity != null) {
             val resultIntent = Intent(
                 mContext.applicationContext,
-                FlutterNotificationListenerPlugin.activityBind!!::class.java
+                mActivity::class.java
             ).apply {
                 flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
@@ -417,8 +355,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         @JvmStatic
         private val sServiceStarted = AtomicBoolean(false)
 
-        private const val BG_METHOD_CHANNEL_NAME = "flutter_notification_listener/bg_method"
-
         private const val ENABLED_NOTIFICATION_LISTENERS = "enabled_notification_listeners"
 
         fun permissionGiven(context: Context): Boolean {
@@ -543,7 +479,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         fun updateFlutterEngine() {
             Log.d(TAG, "call instance update flutter engine from plugin init $instance")
-            instance?.updateFlutterEngine()
             // we need to `finish init` manually
             instance?.initFinish()
         }
@@ -552,26 +487,46 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             Log.d(TAG, "send call to flutter side immediately!")
             instance?.onPhoneStatePosted(context, map)
         }
-    }
 
-    private fun updateFlutterEngine() {
-        Log.d(TAG, "update the flutter engine of service")
-        // set the method call
-        if (FlutterNotificationListenerPlugin.binaryMessenger != null) {
-            mBackgroundChannel =
-                MethodChannel(
-                    FlutterNotificationListenerPlugin.binaryMessenger!!,
-                    BG_METHOD_CHANNEL_NAME
-                )
-            mBackgroundChannel.setMethodCallHandler(this)
+        fun registerCallListener(mActivity: Activity?): Boolean {
+            return instance?.registerPhoneListener(mActivity) ?: false
         }
 
+        fun showForegroundNotification(cfg: Utils.PromoteServiceConfig, activity: Activity?): Boolean {
+            return instance?.promoteToForeground(cfg, activity) ?: false
+        }
+
+        fun hideForegroundNotification(): Boolean {
+            return instance?.demoteToBackground() ?: false
+        }
+
+        fun notificationTapped(uid: String): Boolean {
+            return instance?.tapNotification(uid) ?: false
+        }
+
+        fun notificationActionTapped(uid: String, index: Int): Boolean {
+            return instance?.tapNotificationAction(uid, index) ?: false
+        }
+
+        fun sendNotificationInputted(uid: String, index: Int, data: Map<*, *>): Boolean {
+            return instance?.sendNotificationInput(uid, index, data) ?: false
+        }
+
+        fun fullNotification(uid: String): Any? {
+            if (instance != null) {
+                if (instance?.eventsCache?.contains(uid) == false) {
+                    return false
+                }
+                Utils.Marshaller.marshal(instance!!.eventsCache[uid]?.mSbn)
+            }
+            return false
+        }
     }
 
-    fun registerPhoneListener(): Boolean {
+    fun registerPhoneListener(mActivity: Activity?): Boolean {
         Log.d(TAG, "updatePhoneListener")
         if (phoneListenStarted) {
-            return false
+            return true
         }
         if (Build.VERSION.SDK_INT >= 31) {
             if (ContextCompat.checkSelfPermission(
@@ -579,7 +534,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                     android.Manifest.permission.READ_PHONE_STATE
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                requestPhoneStatePermission()
+                if (mActivity != null) requestPhoneStatePermission(mActivity)
                 return false
             }
         }
@@ -596,14 +551,12 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_NONE)
     }
 
-    private fun requestPhoneStatePermission() {
-        if (FlutterNotificationListenerPlugin.activityBind != null) {
-            ActivityCompat.requestPermissions(
-                FlutterNotificationListenerPlugin.activityBind!!,
-                arrayOf(android.Manifest.permission.READ_PHONE_STATE),
-                PHONE_STATE_PERMISSION_CODE
-            )
-        }
+    private fun requestPhoneStatePermission(mActivity: Activity) {
+        ActivityCompat.requestPermissions(
+            mActivity,
+            arrayOf(android.Manifest.permission.READ_PHONE_STATE),
+            PHONE_STATE_PERMISSION_CODE
+        )
     }
 
     private fun startListenerService() {
