@@ -19,7 +19,8 @@ class NotificationsListener {
 
   static const MethodChannel _bgMethodChannel =
       const MethodChannel('$CHANNELID/bg_method');
-
+  
+  static const EventChannel eventChannel = EventChannel('$CHANNELID/events');
   static MethodChannel get bgMethodChannel => _bgMethodChannel;
 
   static ReceivePort? _receivePort;

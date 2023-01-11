@@ -226,20 +226,27 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ): Boolean {
 
-        if (grantResults.isNotEmpty()
+        if (grantResults.size == 3
             && requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE
-            && grantResults.first() == PackageManager.PERMISSION_GRANTED
+            && grantResults[0] == PackageManager.PERMISSION_GRANTED
+            && grantResults[1] == PackageManager.PERMISSION_GRANTED
+            && grantResults[2] == PackageManager.PERMISSION_GRANTED
         ) {
             NotificationsHandlerService.instance?.registerPhoneListener()
+        } else {
+            eventSink?.success(false);
         }
         return true
     }
+
     @RequiresApi(Build.VERSION_CODES.P)
-    fun rejectCalls():Boolean {
+    fun rejectCalls(): Boolean {
         val telecomManager = mContext.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
-        if (ActivityCompat.checkSelfPermission(mContext,
+        if (ActivityCompat.checkSelfPermission(
+                mContext,
                 Manifest.permission.ANSWER_PHONE_CALLS
-            )!=PackageManager.PERMISSION_DENIED){
+            ) != PackageManager.PERMISSION_DENIED
+        ) {
             return telecomManager.endCall()
         }
         return false

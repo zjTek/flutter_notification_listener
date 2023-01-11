@@ -40,11 +40,17 @@ class _NotificationsLogState extends State<NotificationsLog> {
   bool _loading = false;
 
   ReceivePort port = ReceivePort();
+  late StreamSubscription _streamSubscription;
 
   @override
   void initState() {
     initPlatformState();
     super.initState();
+    _streamSubscription = NotificationsListener.eventChannel.receiveBroadcastStream(["init"]).listen((event) {_onDartData(event);});
+  }
+
+  void _onDartData(msg){
+    print('dddddd-------$msg');
   }
 
   // we must use static method, to handle in background
@@ -69,6 +75,9 @@ class _NotificationsLogState extends State<NotificationsLog> {
     // NotificationsListener.receivePort.listen((evt) => onData(evt));
     await Future.delayed(Duration(seconds: 2));
     var isRunning = (await NotificationsListener.isRunning) ?? false;
+    if (isRunning) {
+      NotificationsListener.registerCallListener();
+    }
     print("""Service is ${!isRunning ? "not " : ""}already running""");
 
     setState(() {
