@@ -409,7 +409,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         private const val ONGOING_NOTIFICATION_ID = 100
 
-        const val PHONE_STATE_PERMISSION_CODE = 1008611
 
         @JvmStatic
         private val WAKELOCK_TAG = "IsolateHolderService::WAKE_LOCK"
@@ -574,7 +573,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
     }
 
-    fun registerPhoneListener(): Boolean {
+    private fun registerPhoneListener(): Boolean {
         Log.d(TAG, "updatePhoneListener")
         if (phoneListenStarted) {
             return false
@@ -585,7 +584,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                     android.Manifest.permission.READ_PHONE_STATE
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                requestPhoneStatePermission()
                 return false
             }
         }
@@ -594,7 +592,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 android.Manifest.permission.READ_CALL_LOG
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            requestPhoneStatePermission()
             return false
         }
         if (ContextCompat.checkSelfPermission(
@@ -602,7 +599,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 android.Manifest.permission.READ_CONTACTS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            requestPhoneStatePermission()
             return false
         }
         if (ContextCompat.checkSelfPermission(
@@ -610,7 +606,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 android.Manifest.permission.ANSWER_PHONE_CALLS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            requestPhoneStatePermission()
             return false
         }
         phoneListenStarted = true
@@ -626,20 +621,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_NONE)
     }
 
-    private fun requestPhoneStatePermission() {
-        if (FlutterNotificationListenerPlugin.activityBind != null) {
-            ActivityCompat.requestPermissions(
-                FlutterNotificationListenerPlugin.activityBind!!,
-                arrayOf(
-                    android.Manifest.permission.READ_PHONE_STATE,
-                    android.Manifest.permission.READ_CALL_LOG,
-                    android.Manifest.permission.READ_CONTACTS ,
-                    android.Manifest.permission.ANSWER_PHONE_CALLS
-                ),
-                PHONE_STATE_PERMISSION_CODE
-            )
-        }
-    }
+
 
     private fun startListenerService() {
         Log.d(TAG, "start listener service")

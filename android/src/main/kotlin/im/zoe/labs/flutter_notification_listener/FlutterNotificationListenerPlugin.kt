@@ -21,7 +21,6 @@ import io.flutter.plugin.common.PluginRegistry
 class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
     EventChannel.StreamHandler, ActivityAware, PluginRegistry.RequestPermissionsResultListener {
     private var eventSink: EventChannel.EventSink? = null
-
     private lateinit var mContext: Context
     private var plugBind: ActivityPluginBinding? = null
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
@@ -56,6 +55,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         const val TAG = "ListenerPlugin"
         var binaryMessenger: BinaryMessenger? = null
         var activityBind: Activity? = null
+        const val PHONE_STATE_PERMISSION_CODE = 1008611
         private const val EVENT_CHANNEL_NAME = "flutter_notification_listener/events"
         private const val METHOD_CHANNEL_NAME = "flutter_notification_listener/method"
 
@@ -196,6 +196,10 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
                     result.success(false)
                 }
             }
+            "plugin.requestCallPermission" -> {
+                requestPhoneStatePermission()
+                result.success(true)
+            }
             // TODO: register handle with filter
             "setFilter" -> {
                 // TODO
@@ -221,18 +225,30 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         plugBind?.removeRequestPermissionsResultListener(this)
         activityBind = null
     }
-
+    private fun requestPhoneStatePermission() {
+        if (activityBind != null) {
+            ActivityCompat.requestPermissions(
+                activityBind!!,
+                arrayOf(
+                    Manifest.permission.READ_PHONE_STATE,
+                    Manifest.permission.READ_CALL_LOG,
+                    Manifest.permission.READ_CONTACTS ,
+                    Manifest.permission.ANSWER_PHONE_CALLS
+                ),
+                PHONE_STATE_PERMISSION_CODE
+            )
+        }
+    }
     override fun onRequestPermissionsResult(
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ): Boolean {
-
         if (grantResults.size == 3
-            && requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE
+            && requestCode == PHONE_STATE_PERMISSION_CODE
             && grantResults[0] == PackageManager.PERMISSION_GRANTED
             && grantResults[1] == PackageManager.PERMISSION_GRANTED
             && grantResults[2] == PackageManager.PERMISSION_GRANTED
         ) {
-            NotificationsHandlerService.instance?.registerPhoneListener()
+            eventSink?.success(true);
         } else {
             eventSink?.success(false);
         }

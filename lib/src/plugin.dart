@@ -169,7 +169,12 @@ class NotificationsListener {
             .invokeMethod<bool>('service.registerCallListener') ??
         false;
   }
-
+  //plugin.requestCallPermission
+  static Future<bool> requestCallPermission() async {
+    return await _bgMethodChannel
+        .invokeMethod<bool>('service.requestCallPermission') ??
+        false;
+  }
   static Future<bool> disableFilter() async {
     return await _bgMethodChannel
             .invokeMethod<bool>('service.disableFilter') ??
