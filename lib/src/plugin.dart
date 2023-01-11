@@ -84,7 +84,7 @@ class NotificationsListener {
   }
   //plugin.requestCallPermission
   static Future<bool> requestCallPermission() async {
-    return await _bgMethodChannel
+    return await _methodChannel
         .invokeMethod<bool>('plugin.requestCallPermission') ??
         false;
   }
