@@ -55,6 +55,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     private lateinit var phoneCallStateListener: PhoneStateListener
     private lateinit var telephonyManager: TelephonyManager
     private var phoneListenStarted = false
+    private var filterDisabled = false
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -64,6 +65,10 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
             }
             "service.registerCallListener" -> {
                 return result.success(registerPhoneListener())
+            }
+            "service.disableFilter" -> {
+                filterDisabled = true
+                return result.success(true)
             }
             // this should move to plugin
             "service.promoteToForeground" -> {
@@ -207,6 +212,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     private fun isTargetNotification(packName: String): Boolean {
+        if (filterDisabled) return true
         return notifyList.any { packName.contains(it) }
     }
 
