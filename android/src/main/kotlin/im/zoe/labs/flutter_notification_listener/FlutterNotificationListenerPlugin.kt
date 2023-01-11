@@ -1,10 +1,14 @@
 package im.zoe.labs.flutter_notification_listener
 
+import android.Manifest
 import android.app.Activity
 import android.content.*
 import android.content.pm.PackageManager
 import android.os.Build
+import android.telecom.TelecomManager
 import android.util.Log
+import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -185,6 +189,13 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
                 registerEventHandle(mContext, cbId)
                 return result.success(true)
             }
+            "plugin.rejectCall" -> {
+                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    result.success(rejectCalls())
+                } else {
+                    result.success(false)
+                }
+            }
             // TODO: register handle with filter
             "setFilter" -> {
                 // TODO
@@ -215,11 +226,23 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ): Boolean {
 
-        if (grantResults.isNotEmpty() && requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE && grantResults.first() == PackageManager.PERMISSION_GRANTED) {
+        if (grantResults.isNotEmpty()
+            && requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE
+            && grantResults.first() == PackageManager.PERMISSION_GRANTED
+        ) {
             NotificationsHandlerService.instance?.registerPhoneListener()
         }
         return true
     }
-
+    @RequiresApi(Build.VERSION_CODES.P)
+    fun rejectCalls():Boolean {
+        val telecomManager = mContext.getSystemService(Context.TELECOM_SERVICE) as TelecomManager
+        if (ActivityCompat.checkSelfPermission(mContext,
+                Manifest.permission.ANSWER_PHONE_CALLS
+            )!=PackageManager.PERMISSION_DENIED){
+            return telecomManager.endCall()
+        }
+        return false
+    }
 
 }

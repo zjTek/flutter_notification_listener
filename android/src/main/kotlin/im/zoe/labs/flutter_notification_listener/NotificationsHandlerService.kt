@@ -588,39 +588,30 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 requestPhoneStatePermission()
                 return false
             }
-            if (ContextCompat.checkSelfPermission(
-                    mContext,
-                    android.Manifest.permission.READ_CALL_LOG
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPhoneStatePermission()
-                return false
-            }
-            if (ContextCompat.checkSelfPermission(
-                    mContext,
-                    android.Manifest.permission.READ_CONTACTS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPhoneStatePermission()
-                return false
-            }
-        } else {
-            if (ContextCompat.checkSelfPermission(
-                    mContext,
-                    android.Manifest.permission.READ_CALL_LOG
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPhoneStatePermission()
-                return false
-            }
-            if (ContextCompat.checkSelfPermission(
-                    mContext,
-                    android.Manifest.permission.READ_CONTACTS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                requestPhoneStatePermission()
-                return false
-            }
+        }
+        if (ContextCompat.checkSelfPermission(
+                mContext,
+                android.Manifest.permission.READ_CALL_LOG
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPhoneStatePermission()
+            return false
+        }
+        if (ContextCompat.checkSelfPermission(
+                mContext,
+                android.Manifest.permission.READ_CONTACTS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPhoneStatePermission()
+            return false
+        }
+        if (ContextCompat.checkSelfPermission(
+                mContext,
+                android.Manifest.permission.ANSWER_PHONE_CALLS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPhoneStatePermission()
+            return false
         }
         phoneListenStarted = true
         phoneCallStateListener = PhoneCallStateListener(mContext)
@@ -642,7 +633,8 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 arrayOf(
                     android.Manifest.permission.READ_PHONE_STATE,
                     android.Manifest.permission.READ_CALL_LOG,
-                    android.Manifest.permission.READ_CONTACTS
+                    android.Manifest.permission.READ_CONTACTS ,
+                    android.Manifest.permission.ANSWER_PHONE_CALLS
                 ),
                 PHONE_STATE_PERMISSION_CODE
             )
