@@ -19,10 +19,9 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.PluginRegistry
 
 class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
-    EventChannel.StreamHandler, ActivityAware, PluginRegistry.RequestPermissionsResultListener {
+    EventChannel.StreamHandler, ActivityAware {
     private var eventSink: EventChannel.EventSink? = null
     private lateinit var mContext: Context
-    private var plugBind: ActivityPluginBinding? = null
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.i(TAG, "on attached to engine")
         mContext = flutterPluginBinding.applicationContext
@@ -196,10 +195,6 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
                     result.success(false)
                 }
             }
-            "plugin.requestCallPermission" -> {
-                requestPhoneStatePermission()
-                result.success(true)
-            }
             // TODO: register handle with filter
             "setFilter" -> {
                 // TODO
@@ -210,8 +205,6 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activityBind = binding.activity
-        plugBind = binding
-        binding.addRequestPermissionsResultListener(this)
         Log.d(TAG, "activity is $activityBind")
     }
 
@@ -222,37 +215,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     }
 
     override fun onDetachedFromActivity() {
-        plugBind?.removeRequestPermissionsResultListener(this)
         activityBind = null
-    }
-    private fun requestPhoneStatePermission() {
-        if (activityBind != null) {
-            ActivityCompat.requestPermissions(
-                activityBind!!,
-                arrayOf(
-                    Manifest.permission.READ_PHONE_STATE,
-                    Manifest.permission.READ_CALL_LOG,
-                    Manifest.permission.READ_CONTACTS ,
-                    Manifest.permission.ANSWER_PHONE_CALLS
-                ),
-                PHONE_STATE_PERMISSION_CODE
-            )
-        }
-    }
-    override fun onRequestPermissionsResult(
-        requestCode: Int, permissions: Array<out String>, grantResults: IntArray
-    ): Boolean {
-        if (grantResults.size == 3
-            && requestCode == PHONE_STATE_PERMISSION_CODE
-            && grantResults[0] == PackageManager.PERMISSION_GRANTED
-            && grantResults[1] == PackageManager.PERMISSION_GRANTED
-            && grantResults[2] == PackageManager.PERMISSION_GRANTED
-        ) {
-            eventSink?.success(true);
-        } else {
-            eventSink?.success(false);
-        }
-        return true
     }
 
     @RequiresApi(Build.VERSION_CODES.P)

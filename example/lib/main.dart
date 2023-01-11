@@ -40,13 +40,11 @@ class _NotificationsLogState extends State<NotificationsLog> {
   bool _loading = false;
 
   ReceivePort port = ReceivePort();
-  late StreamSubscription _streamSubscription;
 
   @override
   void initState() {
     initPlatformState();
     super.initState();
-    _streamSubscription = NotificationsListener.eventChannel.receiveBroadcastStream(["init"]).listen((event) {_onDartData(event);});
   }
 
   void _onDartData(msg){

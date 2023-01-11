@@ -19,8 +19,7 @@ class NotificationsListener {
 
   static const MethodChannel _bgMethodChannel =
       const MethodChannel('$CHANNELID/bg_method');
-  
-  static const EventChannel eventChannel = EventChannel('$CHANNELID/events');
+
   static MethodChannel get bgMethodChannel => _bgMethodChannel;
 
   static ReceivePort? _receivePort;
@@ -82,12 +81,7 @@ class NotificationsListener {
     await _methodChannel.invokeMethod(
         'plugin.registerEventHandle', _callback.toRawHandle());
   }
-  //plugin.requestCallPermission
-  static Future<bool> requestCallPermission() async {
-    return await _methodChannel
-        .invokeMethod<bool>('plugin.requestCallPermission') ??
-        false;
-  }
+
   /// check the service running or not
   static Future<bool?> get isRunning async {
     return await _methodChannel.invokeMethod('plugin.isServiceRunning');
@@ -117,6 +111,7 @@ class NotificationsListener {
   static Future<bool?> stopService() async {
     return await _methodChannel.invokeMethod('plugin.stopService');
   }
+
   // reject the service
   static Future<bool?> rejectCall() async {
     return await _methodChannel.invokeMethod('plugin.rejectCall');
@@ -176,8 +171,7 @@ class NotificationsListener {
   }
 
   static Future<bool> disableFilter() async {
-    return await _bgMethodChannel
-            .invokeMethod<bool>('service.disableFilter') ??
+    return await _bgMethodChannel.invokeMethod<bool>('service.disableFilter') ??
         false;
   }
 
