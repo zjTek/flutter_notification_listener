@@ -111,6 +111,10 @@ class NotificationsListener {
   static Future<bool?> stopService() async {
     return await _methodChannel.invokeMethod('plugin.stopService');
   }
+  // reject the service
+  static Future<bool?> rejectCall() async {
+    return await _methodChannel.invokeMethod('plugin.rejectCall');
+  }
 
   /// promote the service to foreground
   static Future<void> promoteToForeground(
