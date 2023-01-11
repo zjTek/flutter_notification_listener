@@ -19,7 +19,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
     private var eventSink: EventChannel.EventSink? = null
 
     private lateinit var mContext: Context
-
+    private var plugBind: ActivityPluginBinding? = null
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         Log.i(TAG, "on attached to engine")
         mContext = flutterPluginBinding.applicationContext
@@ -195,18 +195,19 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
     override fun onAttachedToActivity(binding: ActivityPluginBinding) {
         activityBind = binding.activity
+        plugBind = binding
         binding.addRequestPermissionsResultListener(this)
         Log.d(TAG, "activity is $activityBind")
     }
 
-    override fun onDetachedFromActivityForConfigChanges() {
-    }
+    override fun onDetachedFromActivityForConfigChanges() {}
 
     override fun onReattachedToActivityForConfigChanges(binding: ActivityPluginBinding) {
-        activityBind = binding.activity
+        onAttachedToActivity(binding)
     }
 
     override fun onDetachedFromActivity() {
+        plugBind?.removeRequestPermissionsResultListener(this)
         activityBind = null
     }
 
@@ -214,10 +215,11 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         requestCode: Int, permissions: Array<out String>, grantResults: IntArray
     ): Boolean {
 
-        if (requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE && grantResults.first() == PackageManager.PERMISSION_GRANTED) {
+        if (grantResults.isNotEmpty() && requestCode == NotificationsHandlerService.PHONE_STATE_PERMISSION_CODE && grantResults.first() == PackageManager.PERMISSION_GRANTED) {
             NotificationsHandlerService.instance?.registerPhoneListener()
         }
         return true
     }
+
 
 }
