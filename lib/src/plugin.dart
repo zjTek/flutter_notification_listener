@@ -82,7 +82,12 @@ class NotificationsListener {
     await _methodChannel.invokeMethod(
         'plugin.registerEventHandle', _callback.toRawHandle());
   }
-
+  //plugin.requestCallPermission
+  static Future<bool> requestCallPermission() async {
+    return await _bgMethodChannel
+        .invokeMethod<bool>('plugin.requestCallPermission') ??
+        false;
+  }
   /// check the service running or not
   static Future<bool?> get isRunning async {
     return await _methodChannel.invokeMethod('plugin.isServiceRunning');
@@ -169,12 +174,7 @@ class NotificationsListener {
             .invokeMethod<bool>('service.registerCallListener') ??
         false;
   }
-  //plugin.requestCallPermission
-  static Future<bool> requestCallPermission() async {
-    return await _bgMethodChannel
-        .invokeMethod<bool>('service.requestCallPermission') ??
-        false;
-  }
+
   static Future<bool> disableFilter() async {
     return await _bgMethodChannel
             .invokeMethod<bool>('service.disableFilter') ??
