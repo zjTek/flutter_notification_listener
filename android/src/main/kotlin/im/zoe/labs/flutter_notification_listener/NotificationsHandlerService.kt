@@ -588,6 +588,39 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                 requestPhoneStatePermission()
                 return false
             }
+            if (ContextCompat.checkSelfPermission(
+                    mContext,
+                    android.Manifest.permission.READ_CALL_LOG
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPhoneStatePermission()
+                return false
+            }
+            if (ContextCompat.checkSelfPermission(
+                    mContext,
+                    android.Manifest.permission.READ_CONTACTS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPhoneStatePermission()
+                return false
+            }
+        } else {
+            if (ContextCompat.checkSelfPermission(
+                    mContext,
+                    android.Manifest.permission.READ_CALL_LOG
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPhoneStatePermission()
+                return false
+            }
+            if (ContextCompat.checkSelfPermission(
+                    mContext,
+                    android.Manifest.permission.READ_CONTACTS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestPhoneStatePermission()
+                return false
+            }
         }
         phoneListenStarted = true
         phoneCallStateListener = PhoneCallStateListener(mContext)
@@ -606,7 +639,11 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         if (FlutterNotificationListenerPlugin.activityBind != null) {
             ActivityCompat.requestPermissions(
                 FlutterNotificationListenerPlugin.activityBind!!,
-                arrayOf(android.Manifest.permission.READ_PHONE_STATE),
+                arrayOf(
+                    android.Manifest.permission.READ_PHONE_STATE,
+                    android.Manifest.permission.READ_CALL_LOG,
+                    android.Manifest.permission.READ_CONTACTS
+                ),
                 PHONE_STATE_PERMISSION_CODE
             )
         }
