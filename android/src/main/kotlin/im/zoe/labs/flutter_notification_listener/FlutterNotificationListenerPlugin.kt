@@ -16,7 +16,6 @@ import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.PluginRegistry
 
 class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCallHandler,
     EventChannel.StreamHandler, ActivityAware {
@@ -54,7 +53,6 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
         const val TAG = "ListenerPlugin"
         var binaryMessenger: BinaryMessenger? = null
         var activityBind: Activity? = null
-        const val PHONE_STATE_PERMISSION_CODE = 1008611
         private const val EVENT_CHANNEL_NAME = "flutter_notification_listener/events"
         private const val METHOD_CHANNEL_NAME = "flutter_notification_listener/method"
 
