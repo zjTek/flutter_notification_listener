@@ -150,7 +150,11 @@ class NotificationEvent(context: Context, sbn: StatusBarNotification) {
             n.actions.forEachIndexed { idx, act ->
                 val map = HashMap<String, Any>()
                 map["id"] = idx
-                map["title"] = act.title.toString()
+                if (act.title != null) {
+                    map["title"] = act.title.toString()
+                } else {
+                    map["title"] = "no title"
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     map["semantic"] = act.semanticAction
                 }

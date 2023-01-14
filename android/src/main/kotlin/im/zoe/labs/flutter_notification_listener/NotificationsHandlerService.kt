@@ -617,6 +617,9 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     }
 
     private fun unregisterPhoneListener() {
+        if (!phoneListenStarted) {
+            return
+        }
         phoneListenStarted = false
         telephonyManager.listen(phoneCallStateListener, PhoneStateListener.LISTEN_NONE)
     }
