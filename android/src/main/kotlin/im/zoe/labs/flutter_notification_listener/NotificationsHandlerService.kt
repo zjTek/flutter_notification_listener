@@ -30,7 +30,7 @@ import androidx.core.content.ContextCompat
 
 class NotificationsHandlerService : MethodChannel.MethodCallHandler, NotificationListenerService() {
     private val queue = ArrayDeque<NotificationEvent>()
-    private lateinit var mBackgroundChannel: MethodChannel
+    private var mBackgroundChannel: MethodChannel? = null
     private lateinit var mContext: Context
     private var notifyList = arrayOf(
         "call.status",
@@ -123,22 +123,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d(TAG, "notification listener service onStartCommand")
         // if get shutdown release the wake lock
-        when (intent?.action) {
-            ACTION_SHUTDOWN -> {
-                (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
-                    newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKELOCK_TAG).apply {
-                        if (isHeld) release()
-                    }
-                }
-                Log.i(TAG, "stop notification handler service!")
-                disableServiceSettings(mContext)
-                stopForeground(true)
-                stopSelf()
-            }
-            else -> {
-
-            }
-        }
         return START_STICKY
     }
 
@@ -565,7 +549,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
                     FlutterNotificationListenerPlugin.binaryMessenger!!,
                     BG_METHOD_CHANNEL_NAME
                 )
-            mBackgroundChannel.setMethodCallHandler(this)
+            mBackgroundChannel?.setMethodCallHandler(this)
         }
 
     }
@@ -651,7 +635,7 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
 
         try {
             // don't care about the method name
-            mBackgroundChannel.invokeMethod("sink_event", listOf(callbackHandle, data))
+            mBackgroundChannel?.invokeMethod("sink_event", listOf(callbackHandle, data))
         } catch (e: Exception) {
             e.printStackTrace()
         }
