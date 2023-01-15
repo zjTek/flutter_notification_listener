@@ -38,7 +38,7 @@ class FlutterNotificationListenerPlugin : FlutterPlugin, MethodChannel.MethodCal
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         // methodChannel.setMethodCallHandler(null)
-        stopService(mContext)
+        //stopService(mContext)
     }
 
     override fun onListen(o: Any?, eventSink: EventChannel.EventSink?) {

@@ -157,9 +157,6 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         super.onDestroy()
         Log.d(TAG, "notification listener service onDestroy")
         unregisterPhoneListener()
-        val bdi = Intent(mContext, RebootBroadcastReceiver::class.java)
-        //remove notification
-        sendBroadcast(bdi)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
