@@ -47,7 +47,9 @@ class NotificationsHandlerService : MethodChannel.MethodCallHandler, Notificatio
         "com.whatsapp",
         "com.twitter.android",
         "com.skype",
-        "com.youtube.android"
+        "com.ss.android.ugc.trill",
+        "com.zhiliaoapp.musically",
+        "com.snapchat.android"
     )
 
     // notification event cache: packageName_id -> event
